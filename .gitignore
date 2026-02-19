@@ -22,3 +22,19 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# AI & Editor Caches (จากรูปที่คุณเจอแก้ปัญหา)
+.antigravity/
+.cache/
+.codeium/
+code_tracker/
+implicit/
+memories/
+
+# OS specific
+Thumbs.db
+desktop.ini
+
+# Env files
+.env
+*.env.local

@@ -1,8 +1,20 @@
-import { Link, useLocation } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { LayoutDashboard, Book, DollarSign, Settings, LogOut, Plus } from 'lucide-react'
+import { useAuth } from '../../context/AuthContext'
 
 const Sidebar = () => {
     const location = useLocation()
+    const navigate = useNavigate()
+    const { logout } = useAuth()
+
+    const handleLogout = async () => {
+        try {
+            await logout()
+            navigate('/seller/login')
+        } catch (error) {
+            console.error("Logout failed", error)
+        }
+    }
 
     const menuItems = [
         { icon: LayoutDashboard, label: 'Dashboard', path: '/seller' },
@@ -38,14 +50,7 @@ const Sidebar = () => {
 
             <div className="mt-auto p-6 border-t border-[var(--color-secondary)]/20">
                 <button
-                    onClick={() => {
-                        // Assuming supabase auth, we should sign out. 
-                        // Since this component is inside AuthProvider, we can use useAuth but it wasn't imported.
-                        // For simplicity in this step, I'll redirect or use a direct signOut if I import supabase, 
-                        // but better to just redirect to home or login for now as a visual cue, 
-                        // or strict: import useAuth.
-                        window.location.href = '/seller/login'
-                    }}
+                    onClick={handleLogout}
                     className="flex items-center gap-3 px-4 py-3 text-red-500 hover:bg-red-50 rounded-xl w-full transition-colors font-medium">
                     <LogOut className="w-5 h-5" />
                     Log Out
