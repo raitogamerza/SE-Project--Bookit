@@ -1,0 +1,52 @@
+@import "tailwindcss";
+
+
+
+:root {
+  --color-primary: #8B5E3C;
+  --color-primary-light: #A07855;
+  --color-primary-dark: #6F4B30;
+  --color-secondary: #D4B996;
+  --color-accent: #E8D5B5;
+  --color-background: #FDFBF7;
+  --color-surface: #ffffff;
+  --color-surface-hover: #f5f0e6;
+  --color-text-main: #4A3B32;
+  --color-text-light: #8C7B70;
+  --font-sans: "Inter", "Bai Jamjuree", sans-serif;
+}
+
+.dark {
+  --color-primary: #E8D5B5;
+  --color-primary-light: #D4B996;
+  --color-primary-dark: #A07855;
+  --color-secondary: #8B5E3C;
+  --color-accent: #5C3D26;
+  --color-background: #1A1412;
+  --color-surface: #2A211E;
+  --color-surface-hover: #3a2e2a;
+  --color-text-main: #FDFBF7;
+  --color-text-light: #D4B996;
+}
+
+html {
+  scrollbar-gutter: stable;
+}
+
+body {
+  background-color: var(--color-background);
+  color: var(--color-text-main);
+  font-family: var(--font-sans);
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Custom Utilities if needed */
+@layer components {
+  .glass-panel {
+    @apply bg-white/80 backdrop-blur-md border border-white/20 shadow-lg;
+  }
+
+  .anime-card {
+    @apply transition-all duration-300 hover:scale-105 hover:shadow-xl;
+  }
+}
