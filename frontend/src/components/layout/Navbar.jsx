@@ -64,7 +64,7 @@ const Navbar = () => {
                         <Search className="absolute left-3 top-2.5 h-5 w-5 text-[var(--color-text-light)]" />
                     </div>
 
-                    {/* Desktop Menu */}
+                    {/* Desktop Menu Icons */}
                     <div className="hidden md:flex items-center gap-6">
                         <Link to="/" className="hover:text-[var(--color-primary)] transition-colors font-medium">Home</Link>
                         <Link to="/explore" className="hover:text-[var(--color-primary)] transition-colors font-medium">Explore</Link>
@@ -121,58 +121,65 @@ const Navbar = () => {
                         )}
                     </div>
 
-                    {/* Mobile Menu Button */}
-                    <button className="md:hidden p-2" onClick={() => setIsMenuOpen(!isMenuOpen)}>
+                    {/* Mobile Menu Button  */}
+                    <button className="md:hidden p-2 ml-4 flex items-center justify-center text-[var(--color-text-main)] hover:bg-[var(--color-secondary)]/10 rounded-full transition-colors" onClick={() => setIsMenuOpen(!isMenuOpen)}>
                         <Menu className="h-6 w-6" />
                     </button>
                 </div>
 
-                {/* Mobile Menu */}
+                {/* Mobile Dropdown Menu */}
                 {isMenuOpen && (
-                    <div className="md:hidden border-t border-[var(--color-secondary)]/30 bg-[var(--color-background)]">
-                        <div className="flex flex-col p-4 space-y-4">
-                            <div className="relative">
+                    <div className="md:hidden absolute top-16 left-0 w-full bg-[var(--color-background)] border-[var(--color-secondary)]/30 border-t border-b overflow-hidden shadow-xl">
+                        <div className="flex flex-col p-4 space-y-2">
+                            <div className="relative mb-4">
                                 <input
                                     type="text"
                                     placeholder="Search..."
-                                    className="w-full pl-10 pr-4 py-2 rounded-full border border-[var(--color-secondary)] bg-[var(--color-surface)]/50"
+                                    className="w-full pl-10 pr-4 py-3 rounded-xl border border-[var(--color-secondary)] bg-[var(--color-surface)]/50 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
                                 />
-                                <Search className="absolute left-3 top-2.5 h-5 w-5 text-[var(--color-text-light)]" />
+                                <Search className="absolute left-3 top-3.5 h-5 w-5 text-[var(--color-text-light)]" />
                             </div>
-                            <Link to="/" className="block py-2 hover:text-[var(--color-primary)]">Home</Link>
-                            <Link to="/explore" className="block py-2 hover:text-[var(--color-primary)]">Explore</Link>
-                            <Link to="/my-library" className="block py-2 hover:text-[var(--color-primary)]">My Library</Link>
-                            <button
-                                onClick={() => {
-                                    setIsMenuOpen(false)
-                                    setIsCartOpen(true)
-                                }}
-                                className="flex items-center gap-2 py-2 hover:text-[var(--color-primary)] w-full text-left"
-                            >
-                                <ShoppingCart className="h-5 w-5" /> Cart ({cart.length})
-                            </button>
-                            <button
-                                onClick={toggleTheme}
-                                className="flex items-center gap-2 py-2 hover:text-[var(--color-primary)] w-full text-left"
-                            >
-                                {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-                                {isDarkMode ? 'Light Mode' : 'Dark Mode'}
-                            </button>
+
+                            <Link to="/" onClick={() => setIsMenuOpen(false)} className="block py-3 px-4 rounded-xl font-medium text-[var(--color-text-main)] hover:bg-[var(--color-primary)]/10 hover:text-[var(--color-primary)] transition-colors">Home</Link>
+                            <Link to="/explore" onClick={() => setIsMenuOpen(false)} className="block py-3 px-4 rounded-xl font-medium text-[var(--color-text-main)] hover:bg-[var(--color-primary)]/10 hover:text-[var(--color-primary)] transition-colors">Explore</Link>
+                            <Link to="/my-library" onClick={() => setIsMenuOpen(false)} className="block py-3 px-4 rounded-xl font-medium text-[var(--color-text-main)] hover:bg-[var(--color-primary)]/10 hover:text-[var(--color-primary)] transition-colors">My Library</Link>
+
+                            {/* Mobile only elements inside dropdown */}
+                            <div className="border-t border-[var(--color-secondary)]/20 pt-2 mt-2">
+                                <button
+                                    onClick={() => {
+                                        setIsMenuOpen(false)
+                                        setIsCartOpen(true)
+                                    }}
+                                    className="flex items-center gap-3 py-3 px-4 w-full text-left rounded-xl font-medium text-[var(--color-text-main)] hover:bg-[var(--color-primary)]/10 hover:text-[var(--color-primary)] transition-colors"
+                                >
+                                    <ShoppingCart className="h-5 w-5" /> Cart ({cart.length})
+                                </button>
+                                <button
+                                    onClick={toggleTheme}
+                                    className="flex items-center gap-3 py-3 px-4 w-full text-left rounded-xl font-medium text-[var(--color-text-main)] hover:bg-[var(--color-primary)]/10 hover:text-[var(--color-primary)] transition-colors"
+                                >
+                                    {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+                                    {isDarkMode ? 'Light Mode' : 'Dark Mode'}
+                                </button>
+                            </div>
 
                             {user ? (
-                                <>
-                                    <div className="py-2 text-[var(--color-primary)] font-bold">
+                                <div className="border-t border-[var(--color-secondary)]/20 pt-2 mt-2">
+                                    <div className="py-3 px-4 text-[var(--color-primary)] font-bold">
                                         Hi, {user.email.split('@')[0]}
                                     </div>
                                     <button
                                         onClick={handleLogout}
-                                        className="block w-full text-center py-2 bg-red-50 text-red-500 rounded-full font-bold"
+                                        className="block w-full text-center py-3 bg-red-50 text-red-500 rounded-xl font-bold hover:bg-red-100 transition-colors"
                                     >
                                         Logout
                                     </button>
-                                </>
+                                </div>
                             ) : (
-                                <Link to="/login" className="block w-full text-center py-2 bg-[var(--color-primary)] text-[var(--color-text-inverse)] rounded-full">Login</Link>
+                                <div className="border-t border-[var(--color-secondary)]/20 pt-4 mt-2">
+                                    <Link onClick={() => setIsMenuOpen(false)} to="/login" className="block w-full text-center py-3 bg-[var(--color-primary)] text-[var(--color-text-inverse)] rounded-xl font-bold shadow-md">Login</Link>
+                                </div>
                             )}
                         </div>
                     </div>
