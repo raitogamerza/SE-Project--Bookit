@@ -8,9 +8,11 @@
   --color-primary-dark: #6F4B30;
   --color-secondary: #D4B996;
   --color-accent: #E8D5B5;
-  --color-background: #FDFBF7;
-  --color-surface: #ffffff;
-  --color-surface-hover: #f5f0e6;
+  --color-background: #F5F0E6;
+  /* Slightly warmer and darker beige instead of FDFBF7 */
+  --color-surface: #FDFBF7;
+  /* Make surface an off-white instead of pure white */
+  --color-surface-hover: #E8D5B5;
   --color-text-main: #4A3B32;
   --color-text-light: #8C7B70;
   --font-sans: "Inter", "Bai Jamjuree", sans-serif;
