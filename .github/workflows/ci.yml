@@ -45,12 +45,6 @@ jobs:
         working-directory: ./frontend
         vercel-args: '--prod'
 
-    - name: Deploy Backend to Render
+    - name: Trigger Render Deploy
       if: github.ref == 'refs/heads/main'
-      uses: bounceapp/render-action@0.6.0
-      with:
-        render-token: ${{ secrets.RENDER_API_KEY }}
-        github-token: ${{ secrets.GITHUB_TOKEN }}
-        service-id: ${{ secrets.RENDER_SERVICE_ID }}
-        retries: 20
-        wait-for-success: true
+      run: curl -X POST ${{ secrets.RENDER_DEPLOY_HOOK }}
