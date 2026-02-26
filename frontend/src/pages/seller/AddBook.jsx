@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Save, Upload, DollarSign, BookOpen, Image as ImageIcon, FileText, AlertCircle } from 'lucide-react'
+import { ArrowLeft, Save, Upload, DollarSign, BookOpen, Image as ImageIcon, FileText, AlertCircle, QrCode } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../services/supabase'
 
@@ -12,6 +12,7 @@ const AddBook = () => {
 
     const [demoFile, setDemoFile] = useState(null)
     const [coverFile, setCoverFile] = useState(null)
+    const [qrCodeFile, setQrCodeFile] = useState(null)
 
     const [formData, setFormData] = useState({
         title: '',
@@ -20,7 +21,8 @@ const AddBook = () => {
         price: '',
         genre: 'Fantasy',
         coverUrl: '',
-        demoFileUrl: ''
+        demoFileUrl: '',
+        qrCodeUrl: ''
     })
 
     const handleChange = (e) => {
@@ -41,6 +43,7 @@ const AddBook = () => {
 
             let finalDemoUrl = formData.demoFileUrl;
             let finalCoverUrl = formData.coverUrl;
+            let finalQrCodeUrl = formData.qrCodeUrl;
 
             // Upload PDF if selected
             if (demoFile) {
@@ -74,6 +77,22 @@ const AddBook = () => {
                 finalCoverUrl = data.publicUrl;
             }
 
+            // Upload QR Code if selected
+            if (qrCodeFile) {
+                const fileExt = qrCodeFile.name.split('.').pop();
+                const fileName = `qrcode_${Date.now()}.${fileExt}`;
+                const filePath = `${user.id}/${fileName}`;
+
+                const { error: uploadError } = await supabase.storage
+                    .from('books')
+                    .upload(filePath, qrCodeFile);
+
+                if (uploadError) throw new Error(`QR Code upload failed: ${uploadError.message}`);
+
+                const { data } = supabase.storage.from('books').getPublicUrl(filePath);
+                finalQrCodeUrl = data.publicUrl;
+            }
+
             // Get the current user's session token to pass to the backend
             const { data: { session } } = await supabase.auth.getSession();
             const token = session?.access_token;
@@ -93,6 +112,7 @@ const AddBook = () => {
                     genre: formData.genre,
                     coverUrl: finalCoverUrl,
                     demoFileUrl: finalDemoUrl,
+                    qrCodeUrl: finalQrCodeUrl,
                     sellerId: user.id
                 })
             });
@@ -227,6 +247,47 @@ const AddBook = () => {
                                             type="url"
                                             name="demoFileUrl"
                                             value={formData.demoFileUrl}
+                                            onChange={handleChange}
+                                            className="w-full px-4 py-2 rounded-xl border border-[var(--color-secondary)]/20 focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 outline-none transition-all text-sm"
+                                            placeholder="https://..."
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Payment QR Code */}
+                            <div className="bg-[var(--color-surface)] rounded-2xl shadow-sm border border-[var(--color-secondary)]/10 p-6">
+                                <h2 className="text-lg font-bold text-[var(--color-text-main)] mb-4 flex items-center gap-2">
+                                    <ImageIcon className="w-5 h-5 text-orange-600" />
+                                    Payment QR Code
+                                </h2>
+
+                                <div className="space-y-4">
+                                    <p className="text-sm text-[var(--color-text-light)]">Upload your PromptPay or Bank QR Code so buyers can pay you directly.</p>
+                                    <div className="aspect-square bg-[var(--color-secondary)]/10 rounded-xl overflow-hidden border border-[var(--color-secondary)]/20 flex items-center justify-center relative group">
+                                        {(qrCodeFile || formData.qrCodeUrl) ? (
+                                            <img src={qrCodeFile ? URL.createObjectURL(qrCodeFile) : formData.qrCodeUrl} alt="QR Code Preview" className="w-full h-full object-cover" />
+                                        ) : (
+                                            <div className="text-center p-4">
+                                                <QrCode className="w-8 h-8 text-[var(--color-secondary)] mx-auto mb-2" />
+                                                <p className="text-xs text-[var(--color-text-light)]">No QR code selected</p>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <input
+                                        type="file"
+                                        accept="image/*"
+                                        onChange={(e) => setQrCodeFile(e.target.files[0])}
+                                        className="w-full px-2 py-2 rounded-xl border border-[var(--color-secondary)]/20 focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 outline-none transition-all file:mr-4 file:py-1 file:px-3 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-orange-50 file:text-orange-700 hover:file:bg-orange-100 cursor-pointer text-sm"
+                                    />
+
+                                    <div>
+                                        <p className="text-xs text-[var(--color-text-light)] mb-1">Or direct URL:</p>
+                                        <input
+                                            type="url"
+                                            name="qrCodeUrl"
+                                            value={formData.qrCodeUrl}
                                             onChange={handleChange}
                                             className="w-full px-4 py-2 rounded-xl border border-[var(--color-secondary)]/20 focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 outline-none transition-all text-sm"
                                             placeholder="https://..."

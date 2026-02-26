@@ -38,7 +38,8 @@ const Explore = () => {
                         rating: (Math.random() * (5 - 4) + 4).toFixed(1), // Mock rating for now (4.0 - 5.0)
                         isNew: isNew,
                         category: book.genre,
-                        cover: book.cover_url || 'https://images.unsplash.com/photo-1544947950-fa07a98d237f?auto=format&fit=crop&q=80&w=800' // Fallback
+                        cover: book.cover_url || 'https://images.unsplash.com/photo-1544947950-fa07a98d237f?auto=format&fit=crop&q=80&w=800', // Fallback
+                        qrCodeUrl: book.qr_code_url // Support for direct payment
                     };
                 });
 

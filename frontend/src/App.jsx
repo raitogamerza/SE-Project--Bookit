@@ -14,6 +14,7 @@ import MyLibrary from './pages/user/MyLibrary'
 import Profile from './pages/user/Profile'
 import ReadPage from './pages/user/ReadPage'
 import Checkout from './pages/payment/Checkout'
+import PaymentSuccess from './pages/payment/PaymentSuccess'
 import SellerDashboard from './pages/seller/SellerDashboard'
 import { CartProvider } from './context/CartContext'
 import { AuthProvider } from './context/AuthContext'
@@ -68,6 +69,7 @@ function App() {
             <Route path="profile" element={<Profile />} />
             <Route path="read/:id" element={<ReadPage />} />
             <Route path="checkout" element={<Checkout />} />
+            <Route path="payment/success" element={<PaymentSuccess />} />
             <Route path="book/:id" element={<BookDetail />} />
 
             {/* Guide pages visible to public/users */}

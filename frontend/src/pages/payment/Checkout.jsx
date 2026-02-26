@@ -1,24 +1,54 @@
 import { useState } from 'react'
 import { useCart } from '../../context/CartContext'
+import { useAuth } from '../../context/AuthContext'
 import { ArrowLeft, CreditCard, Wallet, QrCode } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 
 const Checkout = () => {
     const { cart, clearCart } = useCart()
+    const { user } = useAuth()
     const navigate = useNavigate()
     const [isProcessing, setIsProcessing] = useState(false)
     const total = cart.reduce((sum, item) => sum + item.price, 0)
 
-    const handlePayment = (e) => {
+    const handlePayment = async (e) => {
         e.preventDefault()
+
+        if (!user) {
+            alert('Please login to continue checkout.')
+            navigate('/login')
+            return
+        }
+
         setIsProcessing(true)
-        // Mock payment processing
-        setTimeout(() => {
+
+        try {
+            const response = await fetch('http://localhost:5000/api/checkout-direct', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    items: cart,
+                    userId: user.id
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                // Redirect user to Success page and clear cart
+                navigate(`/payment/success?session_id=manual_${Date.now()}`);
+            } else {
+                console.error('Failed to create order:', data);
+                alert('Failed to initiate payment. Please try again.');
+                setIsProcessing(false)
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('An error occurred during payment.');
             setIsProcessing(false)
-            clearCart()
-            navigate('/my-library')
-            // In a real app, go to success page
-        }, 2000)
+        }
     }
 
     if (cart.length === 0) {
@@ -65,27 +95,37 @@ const Checkout = () => {
                         </div>
                     </div>
 
-                    {/* Card Details */}
+                    {/* QR Code and Confirmation */}
                     <div className="bg-[var(--color-surface)] p-6 rounded-2xl shadow-sm border border-[var(--color-secondary)]/20">
-                        <h2 className="text-xl font-bold mb-4 text-[var(--color-text-main)]">Card Details</h2>
-                        <form id="payment-form" onSubmit={handlePayment} className="space-y-4">
-                            <div>
-                                <label className="block text-sm font-medium mb-1 text-[var(--color-text-main)]">Card Number</label>
-                                <input type="text" placeholder="0000 0000 0000 0000" className="w-full p-3 rounded-xl border border-[var(--color-secondary)]/30 focus:ring-2 focus:ring-[var(--color-primary)] outline-none" required />
-                            </div>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-sm font-medium mb-1 text-[var(--color-text-main)]">Expiry Date</label>
-                                    <input type="text" placeholder="MM/YY" className="w-full p-3 rounded-xl border border-[var(--color-secondary)]/30 focus:ring-2 focus:ring-[var(--color-primary)] outline-none" required />
+                        <h2 className="text-xl font-bold mb-4 text-[var(--color-text-main)]">Seller Payment Info</h2>
+                        <form id="payment-form" onSubmit={handlePayment} className="space-y-6">
+
+                            <div className="bg-[var(--color-primary)]/5 border border-[var(--color-primary)] rounded-xl p-6 text-center space-y-4">
+                                <p className="text-[var(--color-text-main)] font-medium">Please scan the QR code to transfer payment directly to the seller.</p>
+
+                                <div className="aspect-square max-w-[200px] mx-auto bg-white rounded-2xl p-2 border-2 border-[var(--color-primary)]">
+                                    {(cart[0] && cart[0].qrCodeUrl) ? (
+                                        <img src={cart[0].qrCodeUrl} alt="Seller QR Code" className="w-full h-full object-contain rounded-xl" />
+                                    ) : (
+                                        <div className="w-full h-full bg-gray-100 rounded-xl flex items-center justify-center flex-col text-[var(--color-text-light)]">
+                                            <QrCode className="w-12 h-12 mb-2" />
+                                            <span className="text-xs">No QR Code provided</span>
+                                        </div>
+                                    )}
                                 </div>
-                                <div>
-                                    <label className="block text-sm font-medium mb-1 text-[var(--color-text-main)]">CVC</label>
-                                    <input type="text" placeholder="123" className="w-full p-3 rounded-xl border border-[var(--color-secondary)]/30 focus:ring-2 focus:ring-[var(--color-primary)] outline-none" required />
-                                </div>
+
+                                <p className="text-sm text-[var(--color-text-light)]">
+                                    After transferring <span className="font-bold text-[var(--color-primary-dark)]">฿{total}</span>, click "Confirm Payment" below.
+                                </p>
                             </div>
-                            <div>
-                                <label className="block text-sm font-medium mb-1 text-[var(--color-text-main)]">Cardholder Name</label>
-                                <input type="text" placeholder="John Doe" className="w-full p-3 rounded-xl border border-[var(--color-secondary)]/30 focus:ring-2 focus:ring-[var(--color-primary)] outline-none" required />
+
+                            <div className="pt-4 border-t border-[var(--color-secondary)]/20">
+                                <label className="flex items-start gap-3 cursor-pointer">
+                                    <input type="checkbox" required className="mt-1 w-5 h-5 rounded border-[var(--color-secondary)]/30 text-[var(--color-primary)] focus:ring-[var(--color-primary)]" />
+                                    <span className="text-sm text-[var(--color-text-light)]">
+                                        I confirm that I have transferred the correct amount to the seller's account. I understand that false confirmations may lead to account ban.
+                                    </span>
+                                </label>
                             </div>
                         </form>
                     </div>
@@ -128,10 +168,10 @@ const Checkout = () => {
                             disabled={isProcessing}
                             className="w-full py-4 bg-[var(--color-primary)] text-[var(--color-text-inverse)] rounded-xl font-bold hover:bg-[var(--color-primary-dark)] transition-all shadow-lg hover:shadow-xl active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                         >
-                            {isProcessing ? 'Processing...' : `Pay ฿${total}`}
+                            {isProcessing ? 'Processing...' : `Confirm Payment of ฿${total}`}
                         </button>
                         <p className="text-xs text-center text-[var(--color-text-light)] mt-4">
-                            Secure encrypted payment. No card information is stored on our servers.
+                            Your book will be unlocked immediately after confirmation.
                         </p>
                     </div>
                 </div>

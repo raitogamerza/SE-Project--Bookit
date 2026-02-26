@@ -35,7 +35,8 @@ const BookDetail = () => {
                     pages: Math.floor(Math.random() * (500 - 150) + 150), // Mock pages
                     language: 'English', // Mock 
                     publisher: 'Independent', // Mock
-                    demoFileUrl: data.demo_file_url
+                    demoFileUrl: data.demo_file_url,
+                    qrCodeUrl: data.qr_code_url
                 });
 
             } catch (err) {
