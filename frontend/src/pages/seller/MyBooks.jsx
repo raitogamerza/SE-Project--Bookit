@@ -36,8 +36,20 @@ const MyBooks = () => {
     const handleDelete = async (id) => {
         if (window.confirm("Are you sure you want to delete this book?")) {
             try {
-                const { error } = await supabase.from('books').delete().eq('id', id);
-                if (error) throw error;
+                const { data: { session } } = await supabase.auth.getSession();
+
+                const response = await fetch(`http://localhost:5000/api/books/${id}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Authorization': session ? `Bearer ${session.access_token}` : ''
+                    }
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'Failed to delete');
+                }
+
                 setBooks(books.filter(b => b.id !== id));
             } catch (error) {
                 console.error("Error deleting book:", error.message);

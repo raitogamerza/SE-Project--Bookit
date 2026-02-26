@@ -186,6 +186,42 @@ app.post('/api/books', async (req, res) => {
     }
 });
 
+// Route to Delete a Book
+app.delete('/api/books/:id', async (req, res) => {
+    try {
+        const bookId = req.params.id;
+        const authHeader = req.headers.authorization;
+
+        // Create a user-scoped supabase client to respect RLS
+        const supabaseClient = createClient(supabaseUrl, supabaseKey, {
+            global: {
+                headers: {
+                    Authorization: authHeader || ''
+                }
+            }
+        });
+
+        // 1. Delete associated orders first to prevent foreign key constraint error
+        const { error: orderError } = await supabaseClient.from('orders').delete().eq('book_id', bookId);
+        if (orderError) {
+            console.error('Error deleting related orders:', orderError);
+        }
+
+        // 2. Delete the book
+        const { error } = await supabaseClient.from('books').delete().eq('id', bookId);
+
+        if (error) {
+            console.error('Error deleting book:', error);
+            return res.status(500).json({ error: 'Failed to delete book', details: error.message });
+        }
+
+        res.json({ success: true, message: 'Book deleted successfully' });
+    } catch (err) {
+        console.error('Server Error on Delete:', err);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
 // Start the server
 app.listen(port, () => {
     console.log(`Server is running on port: ${port}`);
