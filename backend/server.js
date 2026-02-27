@@ -3,8 +3,6 @@ const cors = require('cors');
 require('dotenv').config();
 const { createClient } = require('@supabase/supabase-js');
 
-const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
-
 const app = express();
 const port = process.env.PORT || 5000;
 
@@ -192,7 +190,7 @@ app.delete('/api/books/:id', async (req, res) => {
         const bookId = req.params.id;
         const authHeader = req.headers.authorization;
 
-        // Create a user-scoped supabase client to respect RLS
+        // Create a user-scoped supabase client to respect DB RLS
         const supabaseClient = createClient(supabaseUrl, supabaseKey, {
             global: {
                 headers: {
@@ -201,13 +199,47 @@ app.delete('/api/books/:id', async (req, res) => {
             }
         });
 
-        // 1. Delete associated orders first to prevent foreign key constraint error
+        // Create an admin client for Storage operations (bypassing Storage RLS which often blocks deletes)
+        const supabaseAdmin = createClient(supabaseUrl, process.env.SUPABASE_SERVICE_ROLE_KEY || supabaseKey);
+
+        // 1. Fetch the book to get the file URLs before deleting
+        const { data: book, error: fetchError } = await supabaseClient.from('books').select('*').eq('id', bookId).single();
+
+        if (fetchError || !book) {
+            console.error('Error fetching book details:', fetchError);
+            return res.status(404).json({ error: 'Book not found' });
+        }
+
+        // 2. Delete associated orders first to prevent foreign key constraint error
         const { error: orderError } = await supabaseClient.from('orders').delete().eq('book_id', bookId);
         if (orderError) {
             console.error('Error deleting related orders:', orderError);
         }
 
-        // 2. Delete the book
+        // 3. Extract file paths from URLs and delete from Supabase Storage
+        const extractPath = (url) => {
+            if (!url) return null;
+            // Expected format: https://[project].supabase.co/storage/v1/object/public/books/[user_id]/[filename]
+            const parts = url.split('/public/books/');
+            return parts.length > 1 ? parts[1] : null;
+        };
+
+        const filesToDelete = [
+            extractPath(book.demo_file_url),
+            extractPath(book.cover_url),
+            extractPath(book.qr_code_url)
+        ].filter(Boolean); // Remove nulls
+
+        if (filesToDelete.length > 0) {
+            const { data: removeData, error: storageError } = await supabaseAdmin.storage.from('books').remove(filesToDelete);
+            if (storageError) {
+                console.error('Error deleting files from storage:', storageError);
+            } else {
+                console.log('Successfully deleted storage files:', removeData);
+            }
+        }
+
+        // 4. Delete the book
         const { error } = await supabaseClient.from('books').delete().eq('id', bookId);
 
         if (error) {
@@ -215,7 +247,7 @@ app.delete('/api/books/:id', async (req, res) => {
             return res.status(500).json({ error: 'Failed to delete book', details: error.message });
         }
 
-        res.json({ success: true, message: 'Book deleted successfully' });
+        res.json({ success: true, message: 'Book and associated files deleted successfully' });
     } catch (err) {
         console.error('Server Error on Delete:', err);
         res.status(500).json({ error: 'Internal Server Error' });

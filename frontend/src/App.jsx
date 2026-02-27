@@ -1,8 +1,9 @@
-import { Routes, Route } from 'react-router-dom'
+import { Routes, Route, Outlet } from 'react-router-dom'
 import Layout from './components/layout/Layout'
 import SellerLayout from './components/layout/SellerLayout'
 import AdminLayout from './components/layout/AdminLayout'
 import ProtectedRoute from './components/auth/ProtectedRoute'
+import ProtectedUserRoute from './components/auth/ProtectedUserRoute'
 import Home from './pages/public/Home'
 import Login from './pages/auth/Login'
 import Register from './pages/auth/Register'
@@ -59,23 +60,27 @@ function App() {
 
           {/* User/Public Routes - Main Site (Navbar + Footer) */}
           <Route path="/" element={<Layout />}>
-            <Route index element={<Home />} />
-            <Route path="login" element={<Login />} />
-            <Route path="register" element={<Register />} />
-            <Route path="forgot-password" element={<ForgotPassword />} />
-            <Route path="update-password" element={<UpdatePassword />} />
-            <Route path="explore" element={<Explore />} />
-            <Route path="my-library" element={<MyLibrary />} />
-            <Route path="profile" element={<Profile />} />
-            <Route path="read/:id" element={<ReadPage />} />
-            <Route path="checkout" element={<Checkout />} />
-            <Route path="payment/success" element={<PaymentSuccess />} />
-            <Route path="book/:id" element={<BookDetail />} />
 
-            {/* Guide pages visible to public/users */}
+            {/* Unprotected Public Routes */}
             <Route path="seller/guide" element={<SellerGuide />} />
 
-            <Route path="*" element={<NotFound />} />
+            {/* Protected User-Only Routes */}
+            <Route element={<ProtectedUserRoute> <Outlet /> </ProtectedUserRoute>}>
+              <Route index element={<Home />} />
+              <Route path="login" element={<Login />} />
+              <Route path="register" element={<Register />} />
+              <Route path="forgot-password" element={<ForgotPassword />} />
+              <Route path="update-password" element={<UpdatePassword />} />
+              <Route path="explore" element={<Explore />} />
+              <Route path="my-library" element={<MyLibrary />} />
+              <Route path="profile" element={<Profile />} />
+              <Route path="read/:id" element={<ReadPage />} />
+              <Route path="checkout" element={<Checkout />} />
+              <Route path="payment/success" element={<PaymentSuccess />} />
+              <Route path="book/:id" element={<BookDetail />} />
+              <Route path="*" element={<NotFound />} />
+            </Route>
+
           </Route>
         </Routes>
       </CartProvider>
