@@ -48,6 +48,7 @@ export const AuthProvider = ({ children }) => {
             },
         })
         if (error) throw error
+
         return data
     }
 

@@ -2,13 +2,17 @@ const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
 const { createClient } = require('@supabase/supabase-js');
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 
 const app = express();
 const port = process.env.PORT || 5000;
 
-// Initialize Supabase Client
+// Initialize Supabase Client with Service Role Key to bypass RLS for backend tasks
 const supabaseUrl = process.env.SUPABASE_URL || 'https://wixrtifshezyldsgyjzr.supabase.co';
-const supabaseKey = process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndpeHJ0aWZzaGV6eWxkc2d5anpyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE0MzU5NDgsImV4cCI6MjA4NzAxMTk0OH0.FPoIiAYLcJx2KQzvb3UWRLss8ZZAZfXB9bKwOVhG-ws';
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+if (!supabaseKey) {
+    console.error("CRITICAL ERROR: Missing SUPABASE_SERVICE_ROLE_KEY in .env");
+}
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 // Middleware
@@ -16,30 +20,34 @@ app.use(cors());
 
 // Stripe Webhook MUST be before express.json()
 app.post('/api/webhook', express.raw({ type: 'application/json' }), async (request, response) => {
+    const payload = request.body;
+    const sig = request.headers['stripe-signature'];
+    const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
+
     let event;
+
     try {
-        const sig = request.headers['stripe-signature'];
-        const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
-        if (endpointSecret && sig) {
-            event = stripe.webhooks.constructEvent(request.body, sig, endpointSecret);
+        if (endpointSecret) {
+            event = stripe.webhooks.constructEvent(payload, sig, endpointSecret);
         } else {
-            // Fallback for local testing if no webhook secret is configured
-            event = JSON.parse(request.body);
+            // Fallback for local testing without webhook secret
+            event = JSON.parse(payload);
         }
     } catch (err) {
         console.error('Webhook signature verification failed.', err.message);
         return response.status(400).send(`Webhook Error: ${err.message}`);
     }
 
-    if (event.type === 'checkout.session.completed') {
-        const session = event.data.object;
-        const userId = session.metadata?.userId;
+    if (event.type === 'payment_intent.succeeded') {
+        const paymentIntent = event.data.object;
+        const userId = paymentIntent.metadata?.userId;
         let bookIds = [];
         try {
-            bookIds = JSON.parse(session.metadata?.bookIds || '[]');
+            bookIds = JSON.parse(paymentIntent.metadata?.bookIds || '[]');
         } catch (e) { }
 
         if (userId && bookIds.length > 0) {
+            console.log(`[Webhook] Fulfilling order for User ${userId}, Books: ${bookIds}`);
             // Fulfill the order by inserting into Supabase
             for (const bookId of bookIds) {
                 const { data: book } = await supabase.from('books').select('price').eq('id', bookId).single();
@@ -67,44 +75,33 @@ app.get('/', (req, res) => {
     res.json({ message: 'Welcome to Bookit Backend API' });
 });
 
-// Route for Stripe Checkout Session
-app.post('/api/create-checkout-session', async (req, res) => {
+// Route to create a PaymentIntent for Stripe Elements
+app.post('/api/create-payment-intent', async (req, res) => {
     try {
         const { items, userId } = req.body;
         if (!items || items.length === 0 || !userId) {
             return res.status(400).json({ error: 'Missing items or user ID' });
         }
 
-        const line_items = items.map(item => ({
-            price_data: {
-                currency: 'thb',
-                product_data: {
-                    name: item.title,
-                    images: item.cover ? [item.cover] : [],
-                },
-                unit_amount: Math.round(item.price * 100), // convert THB to Satang
-            },
-            quantity: 1,
-        }));
-
+        // Calculate total amount in Satang (smallest currency unit for THB)
+        const amount = Math.round(items.reduce((sum, item) => sum + item.price, 0) * 100);
         const bookIds = items.map(item => item.id);
 
-        const session = await stripe.checkout.sessions.create({
+        // Create a PaymentIntent with payment method types
+        const paymentIntent = await stripe.paymentIntents.create({
+            amount: amount,
+            currency: 'thb',
             payment_method_types: ['card', 'promptpay'],
-            line_items,
-            mode: 'payment',
-            // Return URLs point back to frontend. Fallback to localhost if origin not provided.
-            success_url: `${req.headers.origin || 'http://localhost:5173'}/payment/success?session_id={CHECKOUT_SESSION_ID}`,
-            cancel_url: `${req.headers.origin || 'http://localhost:5173'}/checkout`,
             metadata: {
                 userId: userId,
                 bookIds: JSON.stringify(bookIds)
             }
         });
 
-        res.json({ id: session.id, url: session.url });
+        // Send the client secret back to the frontend to render the Element
+        res.json({ clientSecret: paymentIntent.client_secret });
     } catch (error) {
-        console.error('Stripe Session Error:', error);
+        console.error('Stripe PaymentIntent Error:', error);
         res.status(500).json({ error: error.message });
     }
 });
@@ -112,24 +109,96 @@ app.post('/api/create-checkout-session', async (req, res) => {
 // Route for Direct QR Code Checkout (Mock Verification)
 app.post('/api/checkout-direct', async (req, res) => {
     try {
+        const { items, userId, exactAmount } = req.body; // Accept exactAmount
+        if (!items || items.length === 0 || !userId) {
+            return res.status(400).json({ error: 'Missing items or user ID' });
+        }
+
+        // We initially mark the order as "pending" instead of "completed"
+        for (const item of items) {
+            await supabase.from('orders').insert([{
+                user_id: userId,
+                book_id: item.id,
+                amount: exactAmount || item.price, // Save exact decimals
+                status: 'pending' // Changed to pending
+            }]);
+        }
+
+        res.json({ success: true, message: 'Order created and pending verification.', exactAmount });
+    } catch (error) {
+        console.error('Direct Checkout Error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Fallback Route for local testing: Force fulfill an order without Stripe Webhook
+app.post('/api/fulfill-order-test', async (req, res) => {
+    try {
         const { items, userId } = req.body;
         if (!items || items.length === 0 || !userId) {
             return res.status(400).json({ error: 'Missing items or user ID' });
         }
 
-        // Fulfill the order directly by inserting into Supabase
+        console.log(`[Test Fulfillment] Fulfilling order for User ${userId}`);
+
         for (const item of items) {
-            await supabase.from('orders').insert([{
+            const { error: insertError } = await supabase.from('orders').insert([{
                 user_id: userId,
                 book_id: item.id,
                 amount: item.price,
                 status: 'completed'
             }]);
+            if (insertError) {
+                console.error("❌ Supabase Insert Error:", insertError);
+                return res.status(500).json({ error: "Failed to insert order into DB: " + insertError.message });
+            }
+        }
+        res.json({ success: true, message: 'Order fulfilled (test mode)' });
+    } catch (error) {
+        console.error('Test Fulfillment Error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Route for Auto Email Payment Verification
+app.post('/api/verify-payment', async (req, res) => {
+    try {
+        const { exactAmount, userId } = req.body;
+
+        if (!exactAmount) {
+            return res.status(400).json({ error: 'Missing exact amount to verify' });
         }
 
-        res.json({ success: true, message: 'Payment confirmed and order created.' });
+        const emailUser = process.env.EMAIL_USER;
+        const emailPass = process.env.EMAIL_PASS;
+
+        if (!emailUser || !emailPass) {
+            console.error("No EMAIL_USER or EMAIL_PASS set up in .env");
+            return res.status(500).json({ error: 'Backend email processor not configured.' });
+        }
+
+        // Call our IMAP service
+        const isVerified = await checkRecentEmails(exactAmount, emailUser, emailPass);
+
+        if (isVerified) {
+            // Update the pending orders to completed
+            const { error: updateErr } = await supabase
+                .from('orders')
+                .update({ status: 'completed' })
+                .eq('user_id', userId)
+                .eq('amount', exactAmount)
+                .eq('status', 'pending');
+
+            if (updateErr) {
+                console.error("Error updating order status:", updateErr);
+            }
+            return res.json({ success: true, message: 'Payment verified successfully!' });
+        } else {
+            return res.json({ success: false, message: 'Payment not yet found in bank notifications. Please wait a minute and try again.' });
+        }
+
     } catch (error) {
-        console.error('Direct Checkout Error:', error);
+        console.error('Verify Payment Error:', error);
         res.status(500).json({ error: error.message });
     }
 });
@@ -137,7 +206,7 @@ app.post('/api/checkout-direct', async (req, res) => {
 // Route to Add a Book
 app.post('/api/books', async (req, res) => {
     try {
-        const { title, author, description, price, genre, coverUrl, demoFileUrl, qrCodeUrl, sellerId } = req.body;
+        const { title, author, description, price, genre, coverUrl, demoFileUrl, sellerId } = req.body;
 
         // Basic validation
         if (!title || !author || !price || !sellerId) {
@@ -165,7 +234,6 @@ app.post('/api/books', async (req, res) => {
                     genre,
                     cover_url: coverUrl,
                     demo_file_url: demoFileUrl,
-                    qr_code_url: qrCodeUrl,
                     seller_id: sellerId
                 }
             ])

@@ -1,178 +1,214 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
+import { ArrowLeft, Loader2, ShieldCheck } from 'lucide-react'
+import { loadStripe } from '@stripe/stripe-js'
+import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js'
 import { useCart } from '../../context/CartContext'
 import { useAuth } from '../../context/AuthContext'
-import { ArrowLeft, CreditCard, Wallet, QrCode } from 'lucide-react'
-import { Link, useNavigate } from 'react-router-dom'
 
-const Checkout = () => {
-    const { cart, clearCart } = useCart()
-    const { user } = useAuth()
-    const navigate = useNavigate()
+// Initialize Stripe with the publishable key (Test Mode)
+// ⚠️ WARNING: Never expose the secret key on the frontend!
+const stripePromise = loadStripe('pk_test_51SxRCmIEEB60k7bce5oxRNCIxaLhbuI81Cwy1zsrq4ED9WsiQedKMzwGMJeTsjzMH75aUxHGbrS8hnLmmH5n283S007RBzS2ld')
+
+const CheckoutForm = ({ clientSecret, totalAmount, cart }) => {
+    const stripe = useStripe()
+    const elements = useElements()
+    const [error, setError] = useState(null)
     const [isProcessing, setIsProcessing] = useState(false)
-    const total = cart.reduce((sum, item) => sum + item.price, 0)
 
-    const handlePayment = async (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault()
 
-        if (!user) {
-            alert('Please login to continue checkout.')
-            navigate('/login')
-            return
+        if (!stripe || !elements) {
+            return;
         }
 
         setIsProcessing(true)
 
-        try {
-            const response = await fetch('http://localhost:5000/api/checkout-direct', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    items: cart,
-                    userId: user.id
-                })
-            });
+        // Save cart to localStorage so the success page has it after the Stripe redirect
+        localStorage.setItem('bookit-pending-order', JSON.stringify(cart));
 
-            const data = await response.json();
+        // Confirm the payment
+        const { error: submitError } = await stripe.confirmPayment({
+            elements,
+            confirmParams: {
+                // Determine where to redirect after payment success
+                return_url: `${window.location.origin}/payment/success`,
+            },
+        })
 
-            if (data.success) {
-                // Redirect user to Success page and clear cart
-                navigate(`/payment/success?session_id=manual_${Date.now()}`);
-            } else {
-                console.error('Failed to create order:', data);
-                alert('Failed to initiate payment. Please try again.');
-                setIsProcessing(false)
-            }
-        } catch (error) {
-            console.error('Error:', error);
-            alert('An error occurred during payment.');
+        if (submitError) {
+            setError(submitError.message)
             setIsProcessing(false)
+        } else {
+            // The customer is redirected to the `return_url`.
         }
     }
 
-    if (cart.length === 0) {
-        return (
-            <div className="min-h-[60vh] flex flex-col items-center justify-center space-y-4">
-                <h2 className="text-2xl font-bold text-[var(--color-text-main)]">Your cart is empty</h2>
-                <Link to="/explore" className="px-6 py-3 bg-[var(--color-primary)] text-[var(--color-text-inverse)] rounded-full font-bold hover:bg-[var(--color-primary-dark)]">
-                    Explore Books
-                </Link>
-            </div>
-        )
-    }
+    return (
+        <form onSubmit={handleSubmit} className="space-y-6">
+            <PaymentElement />
+
+            {error && <div className="p-4 bg-red-50 text-red-600 rounded-xl text-sm border border-red-100">{error}</div>}
+
+            <button
+                type="submit"
+                disabled={!stripe || isProcessing}
+                className="w-full bg-[var(--color-primary)] text-[var(--color-text-inverse)] py-4 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-[var(--color-primary-dark)] transition-colors shadow-lg shadow-[var(--color-primary)]/20 disabled:opacity-70"
+            >
+                {isProcessing ? (
+                    <>
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        Processing...
+                    </>
+                ) : (
+                    <>
+                        <ShieldCheck className="w-5 h-5" />
+                        Pay ฿{totalAmount.toFixed(2)} Securely
+                    </>
+                )}
+            </button>
+        </form>
+    )
+}
+
+const Checkout = () => {
+    const { cart } = useCart()
+    const { user } = useAuth()
+    const navigate = useNavigate()
+    const [clientSecret, setClientSecret] = useState("")
+    const [initError, setInitError] = useState(null)
+
+    const total = cart.reduce((sum, item) => sum + item.price, 0)
+
+    useEffect(() => {
+        if (!user) {
+            navigate('/login')
+            return
+        }
+
+        if (cart.length === 0) {
+            navigate('/cart')
+            return
+        }
+
+        if (total < 10) {
+            setInitError("Stripe requires a minimum total of ฿10.00 THB to process the payment. Please add more items to your cart.");
+            return;
+        }
+
+        // Fetch the PaymentIntent client secret from the backend
+        const fetchClientSecret = async () => {
+            try {
+                const response = await fetch('http://localhost:5000/api/create-payment-intent', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ items: cart, userId: user.id })
+                });
+
+                const data = await response.json();
+                if (data.clientSecret) {
+                    setClientSecret(data.clientSecret);
+                } else {
+                    console.error("Failed to fetch client secret:", data.error);
+                    setInitError(data.error || "Failed to initialize secure checkout.");
+                }
+            } catch (error) {
+                console.error("Error creating payment intent:", error);
+                setInitError("Network error: Could not connect to payment server.");
+            }
+        };
+
+        fetchClientSecret();
+    }, [cart, user, navigate]);
+
+    const appearance = {
+        theme: 'stripe',
+        variables: {
+            colorPrimary: '#8B5A2B', // Matching our brown theme
+            colorBackground: '#ffffff',
+            colorText: '#4A3728',
+            colorDanger: '#ef4444',
+            fontFamily: 'system-ui, sans-serif',
+            borderRadius: '12px',
+        },
+    };
 
     return (
-        <div className="container mx-auto px-4 py-8 max-w-6xl">
-            <Link to="/explore" className="inline-flex items-center text-[var(--color-text-light)] hover:text-[var(--color-primary)] mb-6 transition-colors">
-                <ArrowLeft className="w-5 h-5 mr-1" /> Back to Explore
-            </Link>
+        <div className="min-h-screen bg-[var(--color-background)] py-12 px-4 sm:px-6 lg:px-8">
+            <div className="max-w-4xl mx-auto">
+                <Link to="/cart" className="inline-flex items-center text-[var(--color-text-light)] hover:text-[var(--color-primary)] mb-8 font-medium transition-colors">
+                    <ArrowLeft className="w-4 h-4 mr-2" />
+                    Back to cart
+                </Link>
 
-            <h1 className="text-3xl font-bold text-[var(--color-text-main)] mb-8">Checkout</h1>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+                    {/* Left Side: Order Summary */}
+                    <div>
+                        <h1 className="text-3xl font-black text-[var(--color-text-main)] mb-8">Order Summary</h1>
+                        <div className="bg-[var(--color-surface)] rounded-3xl p-6 md:p-8 shadow-sm border border-[var(--color-secondary)]/20 shadow-[var(--color-secondary)]/10">
 
-            <div className="flex flex-col lg:flex-row gap-8">
-                {/* Left: Payment Form */}
-                <div className="flex-1 space-y-6">
-                    {/* Payment Method Selection */}
-                    <div className="bg-[var(--color-surface)] p-6 rounded-2xl shadow-sm border border-[var(--color-secondary)]/20">
-                        <h2 className="text-xl font-bold mb-4 text-[var(--color-text-main)]">Payment Method</h2>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <label className="border border-[var(--color-primary)] bg-[var(--color-primary)]/5 p-4 rounded-xl flex flex-col items-center gap-2 cursor-pointer transition-all ring-2 ring-[var(--color-primary)]">
-                                <CreditCard className="w-8 h-8 text-[var(--color-primary)]" />
-                                <span className="font-bold text-[var(--color-primary-dark)]">Credit Card</span>
-                                <input type="radio" name="payment" className="hidden" defaultChecked />
-                            </label>
-                            <label className="border border-[var(--color-secondary)] p-4 rounded-xl flex flex-col items-center gap-2 cursor-pointer hover:bg-[var(--color-background)] transition-all opacity-60">
-                                <QrCode className="w-8 h-8 text-[var(--color-text-light)]" />
-                                <span className="font-medium">QR PromptPay</span>
-                                <input type="radio" name="payment" className="hidden" />
-                            </label>
-                            <label className="border border-[var(--color-secondary)] p-4 rounded-xl flex flex-col items-center gap-2 cursor-pointer hover:bg-[var(--color-background)] transition-all opacity-60">
-                                <Wallet className="w-8 h-8 text-[var(--color-text-light)]" />
-                                <span className="font-medium">TrueMoney</span>
-                                <input type="radio" name="payment" className="hidden" />
-                            </label>
-                        </div>
-                    </div>
-
-                    {/* QR Code and Confirmation */}
-                    <div className="bg-[var(--color-surface)] p-6 rounded-2xl shadow-sm border border-[var(--color-secondary)]/20">
-                        <h2 className="text-xl font-bold mb-4 text-[var(--color-text-main)]">Seller Payment Info</h2>
-                        <form id="payment-form" onSubmit={handlePayment} className="space-y-6">
-
-                            <div className="bg-[var(--color-primary)]/5 border border-[var(--color-primary)] rounded-xl p-6 text-center space-y-4">
-                                <p className="text-[var(--color-text-main)] font-medium">Please scan the QR code to transfer payment directly to the seller.</p>
-
-                                <div className="aspect-square max-w-[200px] mx-auto bg-white rounded-2xl p-2 border-2 border-[var(--color-primary)]">
-                                    {(cart[0] && cart[0].qrCodeUrl) ? (
-                                        <img src={cart[0].qrCodeUrl} alt="Seller QR Code" className="w-full h-full object-contain rounded-xl" />
-                                    ) : (
-                                        <div className="w-full h-full bg-gray-100 rounded-xl flex items-center justify-center flex-col text-[var(--color-text-light)]">
-                                            <QrCode className="w-12 h-12 mb-2" />
-                                            <span className="text-xs">No QR Code provided</span>
+                            <div className="space-y-4 max-h-[40vh] overflow-y-auto pr-2 custom-scrollbar">
+                                {cart.map((item) => (
+                                    <div key={item.id} className="flex gap-4 p-4 rounded-2xl bg-[var(--color-background)] border border-[var(--color-secondary)]/10">
+                                        <div className="w-16 h-24 bg-[var(--color-secondary)]/20 rounded-lg overflow-hidden flex-shrink-0 shadow-inner">
+                                            {item.cover ? (
+                                                <img src={item.cover} alt={item.title} className="w-full h-full object-cover" />
+                                            ) : (
+                                                <div className="w-full h-full flex justify-center items-center text-[var(--color-text-light)] text-xs">No Cover</div>
+                                            )}
                                         </div>
-                                    )}
-                                </div>
-
-                                <p className="text-sm text-[var(--color-text-light)]">
-                                    After transferring <span className="font-bold text-[var(--color-primary-dark)]">฿{total}</span>, click "Confirm Payment" below.
-                                </p>
-                            </div>
-
-                            <div className="pt-4 border-t border-[var(--color-secondary)]/20">
-                                <label className="flex items-start gap-3 cursor-pointer">
-                                    <input type="checkbox" required className="mt-1 w-5 h-5 rounded border-[var(--color-secondary)]/30 text-[var(--color-primary)] focus:ring-[var(--color-primary)]" />
-                                    <span className="text-sm text-[var(--color-text-light)]">
-                                        I confirm that I have transferred the correct amount to the seller's account. I understand that false confirmations may lead to account ban.
-                                    </span>
-                                </label>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-
-                {/* Right: Order Summary */}
-                <div className="lg:w-96 space-y-6">
-                    <div className="bg-[var(--color-surface)] p-6 rounded-2xl shadow-sm border border-[var(--color-secondary)]/20 sticky top-24">
-                        <h2 className="text-xl font-bold mb-4 text-[var(--color-text-main)]">Order Summary</h2>
-                        <div className="space-y-4 max-h-80 overflow-y-auto pr-2">
-                            {cart.map((item, i) => (
-                                <div key={`${item.id}-${i}`} className="flex gap-3">
-                                    <img src={item.cover} className="w-12 h-16 object-cover rounded" alt={item.title} />
-                                    <div className="flex-1">
-                                        <div className="text-sm font-bold text-[var(--color-text-main)] line-clamp-1">{item.title}</div>
-                                        <div className="text-xs text-[var(--color-text-light)]">{item.author}</div>
-                                        <div className="text-sm font-bold text-[var(--color-primary)]">฿{item.price}</div>
+                                        <div className="flex-1">
+                                            <h3 className="font-bold text-[var(--color-text-main)] text-sm line-clamp-2">{item.title}</h3>
+                                            <p className="text-xs text-[var(--color-text-light)] mt-1">{item.author}</p>
+                                            <div className="mt-2 text-sm font-bold text-[var(--color-primary-dark)]">฿{item.price.toFixed(2)}</div>
+                                        </div>
                                     </div>
-                                </div>
-                            ))}
-                        </div>
-                        <div className="border-t border-[var(--color-secondary)]/10 my-4 pt-4 space-y-2">
-                            <div className="flex justify-between text-[var(--color-text-light)]">
-                                <span>Subtotal</span>
-                                <span>฿{total}</span>
+                                ))}
                             </div>
-                            <div className="flex justify-between text-[var(--color-text-light)]">
-                                <span>Tax</span>
-                                <span>฿0</span>
-                            </div>
-                            <div className="flex justify-between font-bold text-lg text-[var(--color-text-main)] pt-2">
-                                <span>Total</span>
-                                <span>฿{total}</span>
-                            </div>
-                        </div>
 
-                        <button
-                            type="submit"
-                            form="payment-form"
-                            disabled={isProcessing}
-                            className="w-full py-4 bg-[var(--color-primary)] text-[var(--color-text-inverse)] rounded-xl font-bold hover:bg-[var(--color-primary-dark)] transition-all shadow-lg hover:shadow-xl active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                        >
-                            {isProcessing ? 'Processing...' : `Confirm Payment of ฿${total}`}
-                        </button>
-                        <p className="text-xs text-center text-[var(--color-text-light)] mt-4">
-                            Your book will be unlocked immediately after confirmation.
-                        </p>
+                            <div className="mt-6 pt-6 border-t-2 border-[var(--color-secondary)]/20 border-dashed">
+                                <div className="flex justify-between items-center mb-2">
+                                    <span className="text-[var(--color-text-light)]">Subtotal</span>
+                                    <span className="font-semibold text-[var(--color-text-main)]">฿{total.toFixed(2)}</span>
+                                </div>
+                                <div className="flex justify-between items-center text-xl font-black mt-4 text-[var(--color-primary-dark)]">
+                                    <span>Total Amount</span>
+                                    <span>฿{total.toFixed(2)}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Right Side: Stripe Payment Details */}
+                    <div>
+                        <h2 className="text-2xl font-black text-[var(--color-text-main)] mb-8">Payment Details</h2>
+                        <div className="bg-[var(--color-surface)] rounded-3xl p-6 md:p-8 shadow-md border border-[var(--color-secondary)]/30 border-t-4 border-t-[var(--color-primary)]">
+                            <div className="mb-6 flex items-center gap-2 text-sm text-[var(--color-text-light)] bg-green-50 p-4 rounded-xl border border-green-100">
+                                <ShieldCheck className="w-6 h-6 text-green-600" />
+                                <span className="font-medium text-green-800">Your payment is securely processed by Stripe. We do not store your card details.</span>
+                            </div>
+
+                            {initError ? (
+                                <div className="flex flex-col items-center justify-center p-8 bg-red-50 text-red-600 rounded-xl border border-red-100 text-center">
+                                    <AlertCircle className="w-10 h-10 mb-4 text-red-500" />
+                                    <h3 className="font-bold mb-2">Checkout Error</h3>
+                                    <p className="text-sm">{initError}</p>
+                                    <Link to="/cart" className="mt-6 px-6 py-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 transition">
+                                        Return to Cart
+                                    </Link>
+                                </div>
+                            ) : clientSecret ? (
+                                <Elements options={{ clientSecret, appearance }} stripe={stripePromise}>
+                                    <CheckoutForm clientSecret={clientSecret} totalAmount={total} cart={cart} />
+                                </Elements>
+                            ) : (
+                                <div className="flex flex-col items-center justify-center p-12 text-[var(--color-text-light)]">
+                                    <Loader2 className="w-8 h-8 animate-spin mb-4 text-[var(--color-primary)]" />
+                                    <p className="font-medium">Initializing secure checkout...</p>
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
             </div>

@@ -20,7 +20,7 @@ const Sidebar = () => {
         { icon: LayoutDashboard, label: 'Dashboard', path: '/seller' },
         { icon: Book, label: 'My Books', path: '/seller/books' },
         { icon: Plus, label: 'Add Book', path: '/seller/add-book' },
-        { icon: DollarSign, label: 'Earnings', path: '/seller/earnings' },
+        { icon: DollarSign, label: 'Withdrawals', path: '/seller/withdrawals' },
         { icon: Settings, label: 'Settings', path: '/seller/settings' },
     ]
 
