@@ -138,14 +138,12 @@ const BookDetail = () => {
                             <ShoppingCart className="w-6 h-6" /> Add to Cart
                         </button>
                         {book.demoFileUrl && (
-                            <a
-                                href={book.demoFileUrl}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="px-10 py-4 bg-[var(--color-secondary)] text-[var(--color-primary-dark)] rounded-2xl font-bold hover:bg-[#cbb08d] transition-colors inline-block text-center"
+                            <Link
+                                to={`/read/${book.id}?type=sample`}
+                                className="px-10 py-4 bg-[var(--color-secondary)] text-[var(--color-primary-dark)] rounded-2xl font-bold hover:bg-[#cbb08d] transition-colors inline-block text-center flex items-center justify-center gap-2"
                             >
-                                Sample
-                            </a>
+                                <BookOpen className="w-5 h-5" /> Read Sample
+                            </Link>
                         )}
                     </div>
                 </div>

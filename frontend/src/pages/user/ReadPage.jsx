@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
-import { useParams, Link } from 'react-router-dom'
-import { ArrowLeft, ZoomIn, ZoomOut, ChevronLeft, ChevronRight, AlertCircle } from 'lucide-react'
+import { useParams, Link, useSearchParams } from 'react-router-dom'
+import { ArrowLeft, ZoomIn, ZoomOut, ChevronLeft, ChevronRight, AlertCircle, ShoppingCart } from 'lucide-react'
 import { supabase } from '../../services/supabase'
+import { useAuth } from '../../context/AuthContext'
 import { Document, Page, pdfjs } from 'react-pdf'
 import 'react-pdf/dist/Page/AnnotationLayer.css'
 import 'react-pdf/dist/Page/TextLayer.css'
@@ -11,9 +12,14 @@ pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/b
 
 const ReadPage = () => {
     const { id } = useParams()
+    const [searchParams] = useSearchParams()
+    const isSample = searchParams.get('type') === 'sample'
+    const { user } = useAuth()
+
     const [book, setBook] = useState(null)
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState(null)
+    const [hasAccess, setHasAccess] = useState(false)
 
     // PDF specific states
     const [numPages, setNumPages] = useState(null)
@@ -34,7 +40,36 @@ const ReadPage = () => {
                     .single()
 
                 if (error) throw error
-                setBook(data)
+
+                // Verify access if attempting to read the full book
+                let accessGranted = false;
+                if (isSample) {
+                    accessGranted = true;
+                } else if (user) {
+                    if (data.seller_id === user.id) {
+                        accessGranted = true; // Seller owns the book
+                    } else {
+                        // Check if user has purchased it
+                        const { data: orderData } = await supabase
+                            .from('orders')
+                            .select('id')
+                            .eq('user_id', user.id)
+                            .eq('book_id', id)
+                            .eq('status', 'completed')
+                            .maybeSingle()
+
+                        if (orderData) {
+                            accessGranted = true;
+                        }
+                    }
+                }
+
+                setHasAccess(accessGranted)
+                setBook({
+                    ...data,
+                    fileUrl: data.file_url,
+                    demoFileUrl: data.demo_file_url
+                })
             } catch (err) {
                 console.error('Error fetching book:', err)
                 setError(err.message || 'Failed to load book')
@@ -92,7 +127,32 @@ const ReadPage = () => {
         )
     }
 
-    const pdfSource = book.fileUrl || book.demoFileUrl // fallback to demo if no main file
+    if (!hasAccess && !isSample) {
+        return (
+            <div className="fixed inset-0 bg-[var(--color-background)] z-50 flex items-center justify-center p-4">
+                <div className="bg-[var(--color-surface)] p-8 text-center rounded-3xl shadow-xl max-w-md w-full border border-[var(--color-secondary)]/20">
+                    <AlertCircle className="w-16 h-16 text-orange-500 mx-auto mb-4" />
+                    <h2 className="text-2xl font-bold text-[var(--color-text-main)] mb-2">Access Denied</h2>
+                    <p className="text-[var(--color-text-light)] mb-8">You need to purchase this book to read the full version.</p>
+                    <div className="flex flex-col gap-3">
+                        <Link to={`/book/${id}`} className="px-6 py-3 bg-[var(--color-primary)] text-[var(--color-text-inverse)] rounded-xl font-bold hover:bg-[var(--color-primary-dark)] transition-colors flex items-center justify-center gap-2">
+                            <ShoppingCart className="w-5 h-5" /> Buy Book
+                        </Link>
+                        <Link to={`/read/${id}?type=sample`} className="px-6 py-3 bg-[var(--color-secondary)]/10 text-[var(--color-text-main)] rounded-xl font-bold hover:bg-[var(--color-secondary)]/20 transition-colors">
+                            Read Free Sample
+                        </Link>
+                    </div>
+                </div>
+            </div>
+        )
+    }
+
+    let pdfSource = null
+    if (isSample) {
+        pdfSource = book.demoFileUrl
+    } else {
+        pdfSource = book.fileUrl || book.demoFileUrl // fallback to demo if no full file provided by seller
+    }
 
     return (
         <div className="fixed inset-0 bg-[var(--color-background)] z-50 flex flex-col h-screen overflow-hidden">
@@ -103,7 +163,10 @@ const ReadPage = () => {
                 </button>
 
                 <div className="flex flex-col items-center">
-                    <h1 className="font-bold text-sm md:text-base text-[var(--color-text-main)] line-clamp-1 max-w-[200px] md:max-w-md text-center">{book.title}</h1>
+                    <div className="flex items-center gap-2">
+                        {isSample && <span className="px-2 py-0.5 bg-orange-100 text-orange-800 text-[10px] font-bold rounded uppercase tracking-wider">Sample</span>}
+                        <h1 className="font-bold text-sm md:text-base text-[var(--color-text-main)] line-clamp-1 max-w-[150px] md:max-w-xs">{book.title}</h1>
+                    </div>
                     <span className="text-xs text-[var(--color-text-light)]">{book.author}</span>
                 </div>
 

@@ -10,6 +10,7 @@ const AddBook = () => {
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState('')
 
+    const [fullFile, setFullFile] = useState(null)
     const [demoFile, setDemoFile] = useState(null)
     const [coverFile, setCoverFile] = useState(null)
 
@@ -20,7 +21,8 @@ const AddBook = () => {
         price: '',
         genre: 'Fantasy',
         coverUrl: '',
-        demoFileUrl: ''
+        demoFileUrl: '',
+        fileUrl: ''
     })
 
     const handleChange = (e) => {
@@ -40,19 +42,38 @@ const AddBook = () => {
             }
 
             let finalDemoUrl = formData.demoFileUrl;
+            let finalFileUrl = formData.fileUrl;
             let finalCoverUrl = formData.coverUrl;
 
-            // Upload PDF if selected
+            // Upload Full PDF if selected
+            if (fullFile) {
+                const fileExt = fullFile.name.split('.').pop();
+                const randomStr = Math.random().toString(36).substring(2, 8);
+                const fileName = `full_${Date.now()}_${randomStr}.${fileExt}`;
+                const filePath = `${user.id}/${fileName}`;
+
+                const { error: uploadError } = await supabase.storage
+                    .from('books')
+                    .upload(filePath, fullFile);
+
+                if (uploadError) throw new Error(`Full book upload failed: ${uploadError.message}`);
+
+                const { data } = supabase.storage.from('books').getPublicUrl(filePath);
+                finalFileUrl = data.publicUrl;
+            }
+
+            // Upload Demo PDF if selected
             if (demoFile) {
                 const fileExt = demoFile.name.split('.').pop();
-                const fileName = `book_${Date.now()}.${fileExt}`;
+                const randomStr = Math.random().toString(36).substring(2, 8);
+                const fileName = `demo_${Date.now()}_${randomStr}.${fileExt}`;
                 const filePath = `${user.id}/${fileName}`;
 
                 const { error: uploadError } = await supabase.storage
                     .from('books')
                     .upload(filePath, demoFile);
 
-                if (uploadError) throw new Error(`PDF upload failed: ${uploadError.message}`);
+                if (uploadError) throw new Error(`Sample upload failed: ${uploadError.message}`);
 
                 const { data } = supabase.storage.from('books').getPublicUrl(filePath);
                 finalDemoUrl = data.publicUrl;
@@ -93,6 +114,7 @@ const AddBook = () => {
                     genre: formData.genre,
                     coverUrl: finalCoverUrl,
                     demoFileUrl: finalDemoUrl,
+                    fileUrl: finalFileUrl,
                     sellerId: user.id
                 })
             });
@@ -212,7 +234,32 @@ const AddBook = () => {
                                 </h2>
 
                                 <div>
-                                    <label className="block text-sm font-medium text-[var(--color-text-main)] mb-1">Book File (PDF/EPUB)</label>
+                                    <label className="block text-sm font-medium text-[var(--color-text-main)] mb-1">Full Book File (PDF/EPUB) *</label>
+                                    <input
+                                        type="file"
+                                        accept=".pdf,.epub"
+                                        onChange={(e) => setFullFile(e.target.files[0])}
+                                        className="w-full px-4 py-3 rounded-xl border border-[var(--color-secondary)]/20 focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 outline-none transition-all file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-orange-50 file:text-orange-700 hover:file:bg-orange-100 cursor-pointer"
+                                        required={!formData.fileUrl}
+                                    />
+                                    {fullFile && <p className="text-sm text-green-600 mt-2 font-medium">Selected: {fullFile.name}</p>}
+
+                                    <div className="mt-4">
+                                        <p className="text-xs text-[var(--color-text-light)] mb-1">Or provide a direct URL instead:</p>
+                                        <input
+                                            type="url"
+                                            name="fileUrl"
+                                            value={formData.fileUrl}
+                                            onChange={handleChange}
+                                            className="w-full px-4 py-2 rounded-xl border border-[var(--color-secondary)]/20 focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 outline-none transition-all text-sm"
+                                            placeholder="https://..."
+                                            required={!fullFile}
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="mt-6 pt-6 border-t border-[var(--color-secondary)]/10">
+                                    <label className="block text-sm font-medium text-[var(--color-text-main)] mb-1">Free Sample File (PDF/EPUB)</label>
                                     <input
                                         type="file"
                                         accept=".pdf,.epub"

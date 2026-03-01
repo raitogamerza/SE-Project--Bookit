@@ -206,7 +206,7 @@ app.post('/api/verify-payment', async (req, res) => {
 // Route to Add a Book
 app.post('/api/books', async (req, res) => {
     try {
-        const { title, author, description, price, genre, coverUrl, demoFileUrl, sellerId } = req.body;
+        const { title, author, description, price, genre, coverUrl, demoFileUrl, fileUrl, sellerId } = req.body;
 
         // Basic validation
         if (!title || !author || !price || !sellerId) {
@@ -234,6 +234,7 @@ app.post('/api/books', async (req, res) => {
                     genre,
                     cover_url: coverUrl,
                     demo_file_url: demoFileUrl,
+                    file_url: fileUrl,
                     seller_id: sellerId
                 }
             ])
@@ -294,6 +295,7 @@ app.delete('/api/books/:id', async (req, res) => {
 
         const filesToDelete = [
             extractPath(book.demo_file_url),
+            extractPath(book.file_url),
             extractPath(book.cover_url),
             extractPath(book.qr_code_url)
         ].filter(Boolean); // Remove nulls
