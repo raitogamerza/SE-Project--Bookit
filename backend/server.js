@@ -380,6 +380,60 @@ app.post('/api/books', async (req, res) => {
     }
 });
 
+// Route to Update a Book
+app.put('/api/books/:id', async (req, res) => {
+    try {
+        const bookId = req.params.id;
+        const { title, author, description, price, genre, coverUrl, demoFileUrl, fileUrl, sellerId } = req.body;
+
+        if (!title || !author || !price) {
+            return res.status(400).json({ error: 'Missing required fields' });
+        }
+
+        const authHeader = req.headers.authorization;
+
+        // Create a user-scoped supabase client to respect DB RLS
+        const supabaseClient = createClient(supabaseUrl, supabaseKey, {
+            global: {
+                headers: {
+                    Authorization: authHeader || ''
+                }
+            }
+        });
+
+        const { data, error } = await supabaseClient
+            .from('books')
+            .update({
+                title,
+                author,
+                description,
+                price: parseFloat(price),
+                genre,
+                cover_url: coverUrl,
+                demo_file_url: demoFileUrl,
+                file_url: fileUrl
+            })
+            .eq('id', bookId)
+            .eq('seller_id', sellerId) // extra safety check
+            .select();
+
+        if (error) {
+            console.error('Supabase Update Error:', error);
+            return res.status(500).json({ error: 'Failed to update book in database', details: error.message });
+        }
+
+        if (!data || data.length === 0) {
+            return res.status(404).json({ error: 'Book not found or permission denied' });
+        }
+
+        res.status(200).json({ message: 'Book updated successfully', book: data[0] });
+
+    } catch (err) {
+        console.error('Server Update Error:', err);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
 // Route to Delete a Book
 app.delete('/api/books/:id', async (req, res) => {
     try {

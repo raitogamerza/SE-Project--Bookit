@@ -127,9 +127,13 @@ const MyBooks = () => {
                                                 <ExternalLink className="w-4 h-4" />
                                             </a>
                                         )}
-                                        <button className="p-2 text-[var(--color-text-light)] hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-colors cursor-not-allowed opacity-50" title="Edit (Coming soon)">
+                                        <Link
+                                            to={`/seller/edit-book/${book.id}`}
+                                            className="p-2 text-[var(--color-primary)] hover:text-orange-700 hover:bg-orange-50 rounded-lg transition-colors cursor-pointer"
+                                            title="Edit Book"
+                                        >
                                             <Edit className="w-4 h-4" />
-                                        </button>
+                                        </Link>
                                         <button
                                             onClick={() => handleDelete(book.id)}
                                             className="p-2 text-[var(--color-text-light)] hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"

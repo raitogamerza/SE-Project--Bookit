@@ -25,6 +25,7 @@ import SellerLogin from './pages/auth/SellerLogin'
 import SellerRegister from './pages/auth/SellerRegister'
 import SellerGuide from './pages/seller/SellerGuide'
 import AddBook from './pages/seller/AddBook'
+import EditBook from './pages/seller/EditBook'
 import MyBooks from './pages/seller/MyBooks'
 import Withdrawals from './pages/seller/Withdrawals'
 import AdminDashboard from './pages/admin/AdminDashboard'
@@ -43,6 +44,7 @@ function App() {
             <Route index element={<SellerDashboard />} />
             <Route path="books" element={<MyBooks />} />
             <Route path="add-book" element={<AddBook />} />
+            <Route path="edit-book/:id" element={<EditBook />} />
             <Route path="withdrawals" element={<Withdrawals />} />
             {/* Future routes: orders, etc. */}
           </Route>

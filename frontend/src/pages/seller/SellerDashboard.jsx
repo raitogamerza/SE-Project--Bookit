@@ -58,9 +58,9 @@ const SellerDashboard = () => {
                     <h1 className="text-2xl font-bold text-[var(--color-text-main)]">Dashboard</h1>
                     <p className="text-[var(--color-text-light)]">Welcome back, {user?.user_metadata?.full_name || user?.email}</p>
                 </div>
-                <button className="px-4 py-2 bg-[var(--color-primary)] text-[var(--color-text-inverse)] rounded-lg font-bold shadow-md hover:bg-[var(--color-primary-dark)] transition-colors">
+                <Link to="/seller/add-book" className="px-4 py-2 bg-[var(--color-primary)] text-[var(--color-text-inverse)] rounded-lg font-bold shadow-md hover:bg-[var(--color-primary-dark)] transition-colors">
                     + Add New Book
-                </button>
+                </Link>
             </header>
 
             {/* Stats Grid */}

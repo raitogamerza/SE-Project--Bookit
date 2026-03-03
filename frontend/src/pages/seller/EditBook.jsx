@@ -1,0 +1,417 @@
+import { useState, useEffect } from 'react'
+import { Link, useNavigate, useParams } from 'react-router-dom'
+import { ArrowLeft, Save, Upload, DollarSign, BookOpen, Image as ImageIcon, FileText, AlertCircle, QrCode } from 'lucide-react'
+import { useAuth } from '../../context/AuthContext'
+import { supabase } from '../../services/supabase'
+
+const EditBook = () => {
+    const { id } = useParams()
+    const navigate = useNavigate()
+    const { user } = useAuth()
+    const [loading, setLoading] = useState(false)
+    const [initialLoading, setInitialLoading] = useState(true)
+    const [error, setError] = useState('')
+
+    const [fullFile, setFullFile] = useState(null)
+    const [demoFile, setDemoFile] = useState(null)
+    const [coverFile, setCoverFile] = useState(null)
+
+    const [formData, setFormData] = useState({
+        title: '',
+        author: '',
+        description: '',
+        price: '',
+        genre: 'Fantasy',
+        coverUrl: '',
+        demoFileUrl: '',
+        fileUrl: ''
+    })
+
+    const handleChange = (e) => {
+        const { name, value } = e.target
+        setFormData(prev => ({ ...prev, [name]: value }))
+    }
+
+    // Fetch existing book data
+    useEffect(() => {
+        const fetchBook = async () => {
+            if (!id || !user) return;
+            try {
+                const { data, error } = await supabase
+                    .from('books')
+                    .select('*')
+                    .eq('id', id)
+                    .single();
+
+                if (error) throw error;
+                if (data.seller_id !== user.id) {
+                    throw new Error("You do not have permission to edit this action.");
+                }
+
+                setFormData({
+                    title: data.title || '',
+                    author: data.author || '',
+                    description: data.description || '',
+                    price: data.price ? data.price.toString() : '',
+                    genre: data.genre || 'Fantasy',
+                    coverUrl: data.cover_url || '',
+                    demoFileUrl: data.demo_file_url || '',
+                    fileUrl: data.file_url || ''
+                })
+            } catch (err) {
+                console.error("Fetch book error:", err)
+                setError(err.message)
+            } finally {
+                setInitialLoading(false);
+            }
+        }
+
+        fetchBook();
+    }, [id, user]);
+
+    const handleSubmit = async (e) => {
+        e.preventDefault()
+        setLoading(true)
+        setError('')
+
+        try {
+            // Validate inputs
+            if (!formData.title || !formData.author || !formData.price) {
+                throw new Error("Please fill in all required fields.")
+            }
+
+            let finalDemoUrl = formData.demoFileUrl;
+            let finalFileUrl = formData.fileUrl;
+            let finalCoverUrl = formData.coverUrl;
+
+            // Upload Full PDF if selected
+            if (fullFile) {
+                const fileExt = fullFile.name.split('.').pop();
+                const randomStr = Math.random().toString(36).substring(2, 8);
+                const fileName = `full_${Date.now()}_${randomStr}.${fileExt}`;
+                const filePath = `${user.id}/${fileName}`;
+
+                const { error: uploadError } = await supabase.storage
+                    .from('books')
+                    .upload(filePath, fullFile);
+
+                if (uploadError) throw new Error(`Full book upload failed: ${uploadError.message}`);
+
+                const { data } = supabase.storage.from('books').getPublicUrl(filePath);
+                finalFileUrl = data.publicUrl;
+            }
+
+            // Upload Demo PDF if selected
+            if (demoFile) {
+                const fileExt = demoFile.name.split('.').pop();
+                const randomStr = Math.random().toString(36).substring(2, 8);
+                const fileName = `demo_${Date.now()}_${randomStr}.${fileExt}`;
+                const filePath = `${user.id}/${fileName}`;
+
+                const { error: uploadError } = await supabase.storage
+                    .from('books')
+                    .upload(filePath, demoFile);
+
+                if (uploadError) throw new Error(`Sample upload failed: ${uploadError.message}`);
+
+                const { data } = supabase.storage.from('books').getPublicUrl(filePath);
+                finalDemoUrl = data.publicUrl;
+            }
+
+            // Upload Cover if selected
+            if (coverFile) {
+                const fileExt = coverFile.name.split('.').pop();
+                const fileName = `cover_${Date.now()}.${fileExt}`;
+                const filePath = `${user.id}/${fileName}`;
+
+                const { error: uploadError } = await supabase.storage
+                    .from('books')
+                    .upload(filePath, coverFile);
+
+                if (uploadError) throw new Error(`Cover upload failed: ${uploadError.message}`);
+
+                const { data } = supabase.storage.from('books').getPublicUrl(filePath);
+                finalCoverUrl = data.publicUrl;
+            }
+
+            // Get the current user's session token to pass to the backend
+            const { data: { session } } = await supabase.auth.getSession();
+            const token = session?.access_token;
+
+            // Call the Node.js Express backend using PUT
+            const response = await fetch(`http://localhost:5000/api/books/${id}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    title: formData.title,
+                    author: formData.author,
+                    description: formData.description,
+                    price: formData.price,
+                    genre: formData.genre,
+                    coverUrl: finalCoverUrl,
+                    demoFileUrl: finalDemoUrl,
+                    fileUrl: finalFileUrl,
+                    sellerId: user.id
+                })
+            });
+
+            const responseData = await response.json();
+
+            if (!response.ok) {
+                throw new Error(responseData.error || "Failed to update book.");
+            }
+
+            console.log("Updated book via backend:", responseData)
+
+            alert("Book updated successfully!")
+            navigate('/seller')
+        } catch (err) {
+            setError(err.message)
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    if (initialLoading) {
+        return (
+            <div className="min-h-screen bg-orange-50/30 flex justify-center items-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600"></div>
+            </div>
+        )
+    }
+
+    return (
+        <div className="min-h-screen bg-orange-50/30 pb-12">
+            {/* Header */}
+            <header className="bg-[var(--color-surface)] border-b border-[var(--color-secondary)]/10 sticky top-0 z-30">
+                <div className="container mx-auto px-4 h-16 flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                        <Link to="/seller/books" className="p-2 hover:bg-orange-50 rounded-full text-[var(--color-text-light)] transition-colors">
+                            <ArrowLeft className="w-5 h-5" />
+                        </Link>
+                        <h1 className="text-xl font-bold text-[var(--color-text-main)]">Edit Book</h1>
+                    </div>
+                </div>
+            </header>
+
+            <div className="container mx-auto px-4 py-8">
+                <div className="max-w-4xl mx-auto">
+                    {error && (
+                        <div className="bg-red-50 text-red-600 p-4 rounded-xl mb-6 flex items-center gap-3 border border-red-100">
+                            <AlertCircle className="w-5 h-5" />
+                            {error}
+                        </div>
+                    )}
+
+                    <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                        {/* Main Info */}
+                        <div className="lg:col-span-2 space-y-6">
+                            <div className="bg-[var(--color-surface)] rounded-2xl shadow-sm border border-[var(--color-secondary)]/10 p-6">
+                                <h2 className="text-lg font-bold text-[var(--color-text-main)] mb-4 flex items-center gap-2">
+                                    <BookOpen className="w-5 h-5 text-orange-600" />
+                                    Book Details
+                                </h2>
+
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-[var(--color-text-main)] mb-1">Book Title</label>
+                                        <input
+                                            type="text"
+                                            name="title"
+                                            value={formData.title}
+                                            onChange={handleChange}
+                                            className="w-full px-4 py-2 rounded-xl border border-[var(--color-secondary)]/20 focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 outline-none transition-all"
+                                            placeholder="e.g., The Lost Kingdom"
+                                            required
+                                        />
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-sm font-medium text-[var(--color-text-main)] mb-1">Author Name</label>
+                                            <input
+                                                type="text"
+                                                name="author"
+                                                value={formData.author}
+                                                onChange={handleChange}
+                                                className="w-full px-4 py-2 rounded-xl border border-[var(--color-secondary)]/20 focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 outline-none transition-all"
+                                                placeholder="e.g., Jane Doe"
+                                                required
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-[var(--color-text-main)] mb-1">Genre</label>
+                                            <select
+                                                name="genre"
+                                                value={formData.genre}
+                                                onChange={handleChange}
+                                                className="w-full px-4 py-2 rounded-xl border border-[var(--color-secondary)]/20 focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 outline-none transition-all bg-[var(--color-surface)]"
+                                            >
+                                                <option value="Fantasy">Fantasy</option>
+                                                <option value="Sci-Fi">Sci-Fi</option>
+                                                <option value="Romance">Romance</option>
+                                                <option value="Adventure">Adventure</option>
+                                                <option value="Mystery">Mystery</option>
+                                                <option value="Non-Fiction">Non-Fiction</option>
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-medium text-[var(--color-text-main)] mb-1">Description</label>
+                                        <textarea
+                                            name="description"
+                                            value={formData.description}
+                                            onChange={handleChange}
+                                            rows="5"
+                                            className="w-full px-4 py-2 rounded-xl border border-[var(--color-secondary)]/20 focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 outline-none transition-all resize-none"
+                                            placeholder="Write a compelling summary..."
+                                        ></textarea>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="bg-[var(--color-surface)] rounded-2xl shadow-sm border border-[var(--color-secondary)]/10 p-6">
+                                <h2 className="text-lg font-bold text-[var(--color-text-main)] mb-4 flex items-center gap-2">
+                                    <FileText className="w-5 h-5 text-orange-600" />
+                                    Content
+                                </h2>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-[var(--color-text-main)] mb-1">Full Book File (PDF/EPUB) *</label>
+                                    <input
+                                        type="file"
+                                        accept=".pdf,.epub"
+                                        onChange={(e) => setFullFile(e.target.files[0])}
+                                        className="w-full px-4 py-3 rounded-xl border border-[var(--color-secondary)]/20 focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 outline-none transition-all file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-orange-50 file:text-orange-700 hover:file:bg-orange-100 cursor-pointer"
+                                        required={!formData.fileUrl && !fullFile}
+                                    />
+                                    {fullFile && <p className="text-sm text-green-600 mt-2 font-medium">Selected: {fullFile.name}</p>}
+                                    {formData.fileUrl && !fullFile && <p className="text-sm text-gray-600 mt-2 font-medium">Current file: <a href={formData.fileUrl} target="_blank" rel="noopener noreferrer" className="text-orange-600 hover:underline">View</a></p>}
+
+
+                                    <div className="mt-4">
+                                        <p className="text-xs text-[var(--color-text-light)] mb-1">Or provide a direct URL instead:</p>
+                                        <input
+                                            type="url"
+                                            name="fileUrl"
+                                            value={formData.fileUrl}
+                                            onChange={handleChange}
+                                            className="w-full px-4 py-2 rounded-xl border border-[var(--color-secondary)]/20 focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 outline-none transition-all text-sm"
+                                            placeholder="https://..."
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="mt-6 pt-6 border-t border-[var(--color-secondary)]/10">
+                                    <label className="block text-sm font-medium text-[var(--color-text-main)] mb-1">Free Sample File (PDF/EPUB)</label>
+                                    <input
+                                        type="file"
+                                        accept=".pdf,.epub"
+                                        onChange={(e) => setDemoFile(e.target.files[0])}
+                                        className="w-full px-4 py-3 rounded-xl border border-[var(--color-secondary)]/20 focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 outline-none transition-all file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-orange-50 file:text-orange-700 hover:file:bg-orange-100 cursor-pointer"
+                                    />
+                                    {demoFile && <p className="text-sm text-green-600 mt-2 font-medium">Selected: {demoFile.name}</p>}
+
+                                    <div className="mt-4">
+                                        <p className="text-xs text-[var(--color-text-light)] mb-1">Or provide a direct URL instead:</p>
+                                        <input
+                                            type="url"
+                                            name="demoFileUrl"
+                                            value={formData.demoFileUrl}
+                                            onChange={handleChange}
+                                            className="w-full px-4 py-2 rounded-xl border border-[var(--color-secondary)]/20 focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 outline-none transition-all text-sm"
+                                            placeholder="https://..."
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Sidebar Info */}
+                        <div className="space-y-6">
+                            <div className="bg-[var(--color-surface)] rounded-2xl shadow-sm border border-[var(--color-secondary)]/10 p-6">
+                                <h2 className="text-lg font-bold text-[var(--color-text-main)] mb-4 flex items-center gap-2">
+                                    <DollarSign className="w-5 h-5 text-orange-600" />
+                                    Pricing
+                                </h2>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-[var(--color-text-main)] mb-1">Price (USD)</label>
+                                    <div className="relative">
+                                        <span className="absolute left-4 top-2 text-[var(--color-text-light)]">$</span>
+                                        <input
+                                            type="number"
+                                            name="price"
+                                            value={formData.price}
+                                            onChange={handleChange}
+                                            min="0"
+                                            step="0.01"
+                                            className="w-full pl-8 pr-4 py-2 rounded-xl border border-[var(--color-secondary)]/20 focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 outline-none transition-all font-bold text-lg text-[var(--color-text-main)]"
+                                            placeholder="0.00"
+                                            required
+                                        />
+                                    </div>
+                                    <p className="text-xs text-[var(--color-text-light)] mt-2">You will earn 70% of each sale.</p>
+                                </div>
+                            </div>
+
+                            <div className="bg-[var(--color-surface)] rounded-2xl shadow-sm border border-[var(--color-secondary)]/10 p-6">
+                                <h2 className="text-lg font-bold text-[var(--color-text-main)] mb-4 flex items-center gap-2">
+                                    <ImageIcon className="w-5 h-5 text-orange-600" />
+                                    Cover Image
+                                </h2>
+
+                                <div className="space-y-4">
+                                    <div className="aspect-[2/3] bg-[var(--color-secondary)]/10 rounded-xl overflow-hidden border border-[var(--color-secondary)]/20 flex items-center justify-center relative group">
+                                        {(coverFile || formData.coverUrl) ? (
+                                            <img src={coverFile ? URL.createObjectURL(coverFile) : formData.coverUrl} alt="Preview" className="w-full h-full object-cover" />
+                                        ) : (
+                                            <div className="text-center p-4">
+                                                <ImageIcon className="w-8 h-8 text-[var(--color-secondary)] mx-auto mb-2" />
+                                                <p className="text-xs text-[var(--color-text-light)]">No image selected</p>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <input
+                                        type="file"
+                                        accept="image/*"
+                                        onChange={(e) => setCoverFile(e.target.files[0])}
+                                        className="w-full px-2 py-2 rounded-xl border border-[var(--color-secondary)]/20 focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 outline-none transition-all file:mr-4 file:py-1 file:px-3 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-orange-50 file:text-orange-700 hover:file:bg-orange-100 cursor-pointer text-sm"
+                                    />
+
+                                    <div>
+                                        <p className="text-xs text-[var(--color-text-light)] mb-1">Or direct URL:</p>
+                                        <input
+                                            type="url"
+                                            name="coverUrl"
+                                            value={formData.coverUrl}
+                                            onChange={handleChange}
+                                            className="w-full px-4 py-2 rounded-xl border border-[var(--color-secondary)]/20 focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 outline-none transition-all text-sm"
+                                            placeholder="https://..."
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <button
+                                type="submit"
+                                disabled={loading}
+                                className="w-full py-4 bg-orange-600 text-[var(--color-text-inverse)] rounded-xl font-bold hover:bg-orange-700 transition-all shadow-lg hover:shadow-xl active:scale-[0.98] disabled:opacity-70 flex items-center justify-center gap-2"
+                            >
+                                <Save className="w-5 h-5" />
+                                {loading ? 'Saving...' : 'Save Changes'}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    )
+}
+
+export default EditBook
