@@ -4,9 +4,15 @@ import { useAuth } from '../../context/AuthContext'
 const ProtectedRoute = ({ children, allowedRoles = [] }) => {
     const { user, loading } = useAuth()
     const location = useLocation()
+    const adminToken = localStorage.getItem('admin_token')
 
     if (loading) {
         return <div className="min-h-screen flex items-center justify-center">Loading...</div>
+    }
+
+    // Bypass check for mock admin login
+    if (allowedRoles.includes('admin') && adminToken === 'mock_admin_token') {
+        return children
     }
 
     if (!user) {

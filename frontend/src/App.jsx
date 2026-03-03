@@ -29,6 +29,8 @@ import EditBook from './pages/seller/EditBook'
 import MyBooks from './pages/seller/MyBooks'
 import Withdrawals from './pages/seller/Withdrawals'
 import AdminDashboard from './pages/admin/AdminDashboard'
+import ManageUsers from './pages/admin/ManageUsers'
+import ManageBooks from './pages/admin/ManageBooks'
 
 function App() {
   return (
@@ -60,6 +62,8 @@ function App() {
             </ProtectedRoute>
           }>
             <Route path="dashboard" element={<AdminDashboard />} />
+            <Route path="users" element={<ManageUsers />} />
+            <Route path="books" element={<ManageBooks />} />
           </Route>
 
           {/* User/Public Routes - Main Site (Navbar + Footer) */}

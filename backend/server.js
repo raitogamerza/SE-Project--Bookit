@@ -505,6 +505,109 @@ app.delete('/api/books/:id', async (req, res) => {
     }
 });
 
+// --- ADMIN ROUTES ---
+app.get('/api/admin/users', async (req, res) => {
+    try {
+        const supabaseAdmin = createClient(supabaseUrl, process.env.SUPABASE_SERVICE_ROLE_KEY || supabaseKey);
+        const { data: { users }, error } = await supabaseAdmin.auth.admin.listUsers();
+        if (error) throw error;
+
+        const formattedUsers = users.map(u => ({
+            id: u.id,
+            email: u.email,
+            full_name: u.user_metadata?.full_name || 'Unknown',
+            role: u.user_metadata?.role || 'user',
+            created_at: u.created_at
+        }));
+        res.json(formattedUsers);
+    } catch (err) {
+        console.error('Admin Fetch Users Error:', err);
+        res.status(500).json({ error: 'Failed to fetch users' });
+    }
+});
+
+app.delete('/api/admin/users/:id', async (req, res) => {
+    try {
+        const userId = req.params.id;
+        const supabaseAdmin = createClient(supabaseUrl, process.env.SUPABASE_SERVICE_ROLE_KEY || supabaseKey);
+        const { error } = await supabaseAdmin.auth.admin.deleteUser(userId);
+        if (error) throw error;
+        res.json({ success: true, message: 'User deleted successfully' });
+    } catch (err) {
+        console.error('Admin Delete User Error:', err);
+        res.status(500).json({ error: 'Failed to delete user' });
+    }
+});
+
+app.get('/api/admin/books', async (req, res) => {
+    try {
+        const supabaseAdmin = createClient(supabaseUrl, process.env.SUPABASE_SERVICE_ROLE_KEY || supabaseKey);
+
+        const { data: booksData, error: booksError } = await supabaseAdmin.from('books').select('*').order('created_at', { ascending: false });
+        if (booksError) throw booksError;
+
+        const { data: { users }, error: authError } = await supabaseAdmin.auth.admin.listUsers();
+
+        let finalBooks = booksData;
+        if (!authError && users) {
+            finalBooks = booksData.map(book => {
+                const seller = users.find(u => u.id === book.seller_id);
+                return {
+                    ...book,
+                    users: seller ? {
+                        full_name: seller.user_metadata?.full_name || 'Unknown',
+                        email: seller.email
+                    } : null
+                };
+            });
+        }
+
+        res.json(finalBooks);
+    } catch (err) {
+        console.error('Admin Fetch Books Error:', err);
+        res.status(500).json({ error: 'Failed to fetch books' });
+    }
+});
+
+app.delete('/api/admin/books/:id', async (req, res) => {
+    try {
+        const bookId = req.params.id;
+        const supabaseAdmin = createClient(supabaseUrl, process.env.SUPABASE_SERVICE_ROLE_KEY || supabaseKey);
+
+        const { data: book, error: fetchError } = await supabaseAdmin.from('books').select('*').eq('id', bookId).single();
+        if (fetchError || !book) {
+            return res.status(404).json({ error: 'Book not found' });
+        }
+
+        await supabaseAdmin.from('orders').delete().eq('book_id', bookId);
+
+        const extractPath = (url) => {
+            if (!url) return null;
+            const parts = url.split('/public/books/');
+            return parts.length > 1 ? parts[1] : null;
+        };
+
+        const filesToDelete = [
+            extractPath(book.demo_file_url),
+            extractPath(book.file_url),
+            extractPath(book.cover_url),
+            extractPath(book.qr_code_url)
+        ].filter(Boolean);
+
+        if (filesToDelete.length > 0) {
+            await supabaseAdmin.storage.from('books').remove(filesToDelete);
+        }
+
+        const { error } = await supabaseAdmin.from('books').delete().eq('id', bookId);
+        if (error) throw error;
+
+        res.json({ success: true, message: 'Book deleted successfully' });
+    } catch (err) {
+        console.error('Admin Delete Book Error:', err);
+        res.status(500).json({ error: 'Failed to delete book' });
+    }
+});
+
 // Start the server
 app.listen(port, () => {
     console.log(`Server is running on port: ${port}`);
