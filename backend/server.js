@@ -203,6 +203,133 @@ app.post('/api/verify-payment', async (req, res) => {
     }
 });
 
+// Route for Seller Dashboard Analytics
+app.get('/api/seller/dashboard/:sellerId', async (req, res) => {
+    try {
+        const { sellerId } = req.params;
+
+        if (!sellerId) {
+            return res.status(400).json({ error: 'Missing seller ID' });
+        }
+
+        const supabaseAdmin = createClient(supabaseUrl, process.env.SUPABASE_SERVICE_ROLE_KEY || supabaseKey);
+
+        // 1. Get all books owned by this seller
+        const { data: books, error: booksError } = await supabaseAdmin
+            .from('books')
+            .select('id, title')
+            .eq('seller_id', sellerId);
+
+        if (booksError) throw booksError;
+
+        if (!books || books.length === 0) {
+            return res.json({
+                totalRevenue: 0,
+                totalOrders: 0,
+                newCustomers: 0,
+                chartData: [],
+                topFan: null
+            });
+        }
+
+        const bookIds = books.map(b => b.id);
+
+        // 2. Get all completed orders for these books
+        const { data: orders, error: ordersError } = await supabaseAdmin
+            .from('orders')
+            .select('*, profiles(full_name, username, email)')
+            .in('book_id', bookIds)
+            .eq('status', 'completed');
+
+        if (ordersError) throw ordersError;
+
+        // 3. Compute Stats
+        const totalOrders = orders.length;
+        const totalRevenue = orders.reduce((sum, order) => sum + Number(order.amount), 0);
+
+        // Calculate unique customers
+        const uniqueUsers = new Set(orders.map(o => o.user_id));
+        const newCustomers = uniqueUsers.size;
+
+        // 4. Calculate Top Fan
+        const userFrequency = {};
+        orders.forEach(o => {
+            const uid = o.user_id;
+            if (!userFrequency[uid]) {
+                userFrequency[uid] = { count: 0, profile: o.profiles };
+            }
+            userFrequency[uid].count += 1;
+        });
+
+        let topFan = null;
+        let maxCount = 0;
+        for (const [uid, data] of Object.entries(userFrequency)) {
+            if (data.count > maxCount) {
+                maxCount = data.count;
+                topFan = {
+                    name: data.profile?.full_name || data.profile?.username || data.profile?.email || 'Anonymous',
+                    count: data.count
+                };
+            }
+        }
+
+        // 5. Generate Chart Data (Last 7 Days)
+        const chartDataMap = {};
+        // Initialize last 7 days to 0
+        for (let i = 6; i >= 0; i--) {
+            const d = new Date();
+            d.setDate(d.getDate() - i);
+            const dateStr = d.toLocaleDateString('en-US', { weekday: 'short' }); // "Mon", "Tue"
+            chartDataMap[dateStr] = 0;
+        }
+
+        orders.forEach(o => {
+            const orderDate = new Date(o.created_at);
+            const dateStr = orderDate.toLocaleDateString('en-US', { weekday: 'short' });
+            if (chartDataMap[dateStr] !== undefined) {
+                chartDataMap[dateStr] += Number(o.amount);
+            }
+        });
+
+        const chartData = Object.keys(chartDataMap).map(key => ({
+            name: key,
+            sales: chartDataMap[key]
+        }));
+
+        // 6. Format Recent Orders for the Table
+        const recentOrders = orders
+            .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+            .slice(0, 10)
+            .map(o => {
+                const book = books.find(b => b.id === o.book_id) || {};
+                return {
+                    id: o.id.split('-')[0].toUpperCase(),
+                    customer: o.profiles?.full_name || o.profiles?.username || o.profiles?.email || 'Unknown',
+                    book: book.title || 'Unknown Book',
+                    date: new Date(o.created_at).toISOString().split('T')[0],
+                    amount: o.amount,
+                    status: o.status === 'completed' ? 'Completed' : 'Processing'
+                };
+            });
+
+        res.json({
+            totalRevenue,
+            totalOrders,
+            newCustomers,
+            chartData: chartData.length > 0 ? chartData : [
+                { name: 'Mon', sales: 0 }, { name: 'Tue', sales: 0 }, { name: 'Wed', sales: 0 },
+                { name: 'Thu', sales: 0 }, { name: 'Fri', sales: 0 }, { name: 'Sat', sales: 0 }, { name: 'Sun', sales: 0 }
+            ],
+            topFan,
+            recentOrders
+        });
+
+    } catch (error) {
+        console.error('Seller Dashboard Error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // Route to Add a Book
 app.post('/api/books', async (req, res) => {
     try {
