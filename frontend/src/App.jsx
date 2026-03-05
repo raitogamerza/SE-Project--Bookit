@@ -65,6 +65,7 @@ function App() {
             <Route path="dashboard" element={<AdminDashboard />} />
             <Route path="users" element={<ManageUsers />} />
             <Route path="books" element={<ManageBooks />} />
+            <Route path="edit-book/:id" element={<EditBook />} />
             <Route path="withdrawals" element={<ManageWithdrawals />} />
           </Route>
 

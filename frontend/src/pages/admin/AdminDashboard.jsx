@@ -18,36 +18,18 @@ const AdminDashboard = () => {
         setLoading(true)
         try {
             // 1. Fetch Stats
-            const { count: userCount } = await supabase.from('users').select('*', { count: 'exact', head: true })
-            const { count: sellerCount } = await supabase.from('users').select('*', { count: 'exact', head: true }).eq('role', 'seller')
-
-            // Total platform revenue (all completed orders)
-            const { data: orders } = await supabase.from('orders').select('amount').eq('status', 'completed')
-            const totalRevenue = orders?.reduce((sum, order) => sum + (Number(order.amount) || 0), 0) || 0;
-
-            const { count: pendingCount } = await supabase.from('withdrawals').select('*', { count: 'exact', head: true }).eq('status', 'pending')
-
-            setStats({
-                users: userCount || 0,
-                revenue: totalRevenue || 0,
-                sellers: sellerCount || 0,
-                pending: pendingCount || 0
-            })
+            const statsRes = await fetch('http://localhost:5000/api/admin/dashboard');
+            if (statsRes.ok) {
+                const statsData = await statsRes.json();
+                setStats(statsData);
+            }
 
             // 2. Fetch all withdrawals with seller info
-            // In a real database with proper RLS for admins, we can query safely.
-            // Using a simple query assuming admin has access or RLS is bypassed via service role (if using custom endpoint).
-            // For this demo, we assume the admin's session can read everything.
-            const { data: withdrawalList } = await supabase
-                .from('withdrawals')
-                .select(`
-                    id, amount, status, created_at,
-                    users!withdrawals_seller_id_fkey ( id, full_name, email )
-                `)
-                .order('created_at', { ascending: false })
-
-            setWithdrawals(withdrawalList || [])
-
+            const withRes = await fetch('http://localhost:5000/api/admin/withdrawals');
+            if (withRes.ok) {
+                const withdrawalList = await withRes.json();
+                setWithdrawals(withdrawalList);
+            }
         } catch (error) {
             console.error("Error fetching admin data:", error)
         } finally {
@@ -59,12 +41,13 @@ const AdminDashboard = () => {
         if (!confirm(`Are you sure you want to mark this request as ${newStatus.toUpperCase()}?`)) return;
 
         try {
-            const { error } = await supabase
-                .from('withdrawals')
-                .update({ status: newStatus })
-                .eq('id', id)
+            const res = await fetch(`http://localhost:5000/api/admin/withdrawals/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: newStatus })
+            });
 
-            if (error) throw error;
+            if (!res.ok) throw new Error("Failed to update status");
 
             alert(`Withdrawal marked as ${newStatus}`);
             fetchData(); // Refresh list
@@ -131,8 +114,8 @@ const AdminDashboard = () => {
                                             {new Date(w.created_at).toLocaleDateString()}
                                         </td>
                                         <td className="p-4">
-                                            <p className="font-bold text-[var(--color-text-main)] text-sm">{w.users?.full_name || 'Unknown Seller'}</p>
-                                            <p className="text-xs text-[var(--color-text-light)]">{w.users?.email}</p>
+                                            <p className="font-bold text-[var(--color-text-main)] text-sm">{w.seller?.full_name || 'Unknown Seller'}</p>
+                                            <p className="text-xs text-[var(--color-text-light)]">{w.seller?.email}</p>
                                         </td>
                                         <td className="p-4">
                                             <span className="font-bold text-[var(--color-primary-dark)]">฿{w.amount.toFixed(2)}</span>

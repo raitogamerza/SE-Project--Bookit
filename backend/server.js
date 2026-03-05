@@ -384,24 +384,26 @@ app.post('/api/books', async (req, res) => {
 app.put('/api/books/:id', async (req, res) => {
     try {
         const bookId = req.params.id;
-        const { title, author, description, price, genre, coverUrl, demoFileUrl, fileUrl, sellerId } = req.body;
+        const { title, author, description, price, genre, coverUrl, demoFileUrl, fileUrl } = req.body;
 
         if (!title || !author || !price) {
             return res.status(400).json({ error: 'Missing required fields' });
         }
 
         const authHeader = req.headers.authorization;
+        if (!authHeader) return res.status(401).json({ error: 'Unauthorized' });
 
-        // Create a user-scoped supabase client to respect DB RLS
-        const supabaseClient = createClient(supabaseUrl, supabaseKey, {
-            global: {
-                headers: {
-                    Authorization: authHeader || ''
-                }
-            }
-        });
+        const token = authHeader.replace('Bearer ', '');
+        const supabaseAdmin = createClient(supabaseUrl, process.env.SUPABASE_SERVICE_ROLE_KEY || supabaseKey);
 
-        const { data, error } = await supabaseClient
+        const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
+        if (authError || !user) {
+            return res.status(401).json({ error: 'Unauthorized' });
+        }
+
+        const isAdmin = user.user_metadata?.role === 'admin';
+
+        let query = supabaseAdmin
             .from('books')
             .update({
                 title,
@@ -413,9 +415,14 @@ app.put('/api/books/:id', async (req, res) => {
                 demo_file_url: demoFileUrl,
                 file_url: fileUrl
             })
-            .eq('id', bookId)
-            .eq('seller_id', sellerId) // extra safety check
-            .select();
+            .eq('id', bookId);
+
+        // Enforce ownership if the request is not from an admin
+        if (!isAdmin) {
+            query = query.eq('seller_id', user.id);
+        }
+
+        const { data, error } = await query.select();
 
         if (error) {
             console.error('Supabase Update Error:', error);
@@ -505,7 +512,49 @@ app.delete('/api/books/:id', async (req, res) => {
     }
 });
 
-// --- ADMIN ROUTES ---
+// Route for Admin Dashboard Stats
+app.get('/api/admin/dashboard', async (req, res) => {
+    try {
+        const supabaseAdmin = createClient(supabaseUrl, process.env.SUPABASE_SERVICE_ROLE_KEY || supabaseKey);
+
+        // 1. Total users
+        const { data: { users }, error: authError } = await supabaseAdmin.auth.admin.listUsers();
+        if (authError) throw authError;
+
+        const totalUsers = users.length;
+        const totalSellers = users.filter(u => u.user_metadata?.role === 'seller').length;
+
+        // 2. Platform Sales (Total Revenue)
+        const { data: orders, error: ordersError } = await supabaseAdmin
+            .from('orders')
+            .select('amount')
+            .eq('status', 'completed');
+        if (ordersError) throw ordersError;
+
+        const totalRevenue = orders.reduce((sum, order) => sum + (Number(order.amount) || 0), 0);
+
+        // 3. Pending Payouts
+        const { count: pendingCount, error: pendingError } = await supabaseAdmin
+            .from('withdrawals')
+            .select('*', { count: 'exact', head: true })
+            .eq('status', 'pending');
+
+        if (pendingError) throw pendingError;
+
+        res.json({
+            users: totalUsers,
+            revenue: totalRevenue,
+            sellers: totalSellers,
+            pending: pendingCount || 0
+        });
+
+    } catch (error) {
+        console.error('Admin Dashboard Stats Error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// --- ADMIN USERS ROUTES ---
 app.get('/api/admin/users', async (req, res) => {
     try {
         const supabaseAdmin = createClient(supabaseUrl, process.env.SUPABASE_SERVICE_ROLE_KEY || supabaseKey);

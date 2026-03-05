@@ -44,8 +44,8 @@ const EditBook = () => {
                     .single();
 
                 if (error) throw error;
-                if (data.seller_id !== user.id) {
-                    throw new Error("You do not have permission to edit this action.");
+                if (data.seller_id !== user.id && user.user_metadata?.role !== 'admin') {
+                    throw new Error("You do not have permission to edit this book.");
                 }
 
                 setFormData({
@@ -153,8 +153,8 @@ const EditBook = () => {
                     genre: formData.genre,
                     coverUrl: finalCoverUrl,
                     demoFileUrl: finalDemoUrl,
-                    fileUrl: finalFileUrl,
-                    sellerId: user.id
+                    fileUrl: finalFileUrl
+                    // sellerId is no longer passed here, since the admin doesn't own it and the backend doesn't need it.
                 })
             });
 
@@ -167,7 +167,11 @@ const EditBook = () => {
             console.log("Updated book via backend:", responseData)
 
             alert("Book updated successfully!")
-            navigate('/seller')
+            if (user.user_metadata?.role === 'admin') {
+                navigate('/admin/books')
+            } else {
+                navigate('/seller/books')
+            }
         } catch (err) {
             setError(err.message)
         } finally {
@@ -189,9 +193,9 @@ const EditBook = () => {
             <header className="bg-[var(--color-surface)] border-b border-[var(--color-secondary)]/10 sticky top-0 z-30">
                 <div className="container mx-auto px-4 h-16 flex items-center justify-between">
                     <div className="flex items-center gap-4">
-                        <Link to="/seller/books" className="p-2 hover:bg-orange-50 rounded-full text-[var(--color-text-light)] transition-colors">
+                        <button onClick={() => navigate(-1)} className="p-2 hover:bg-orange-50 rounded-full text-[var(--color-text-light)] transition-colors">
                             <ArrowLeft className="w-5 h-5" />
-                        </Link>
+                        </button>
                         <h1 className="text-xl font-bold text-[var(--color-text-main)]">Edit Book</h1>
                     </div>
                 </div>

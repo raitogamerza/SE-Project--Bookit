@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
-import { Trash2, Search, Book } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { Trash2, Search, Book, Edit } from 'lucide-react'
 
 const ManageBooks = () => {
     const [books, setBooks] = useState([])
@@ -115,7 +116,14 @@ const ManageBooks = () => {
                                     <td className="p-4 text-sm text-[var(--color-text-light)]">
                                         {new Date(b.created_at).toLocaleDateString()}
                                     </td>
-                                    <td className="p-4 text-right">
+                                    <td className="p-4 text-right flex justify-end gap-2">
+                                        <Link
+                                            to={`/admin/edit-book/${b.id}`}
+                                            className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"
+                                            title="Edit Book"
+                                        >
+                                            <Edit className="w-4 h-4" />
+                                        </Link>
                                         <button
                                             onClick={() => handleDeleteBook(b.id)}
                                             className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
