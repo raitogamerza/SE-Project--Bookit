@@ -517,7 +517,8 @@ app.get('/api/admin/users', async (req, res) => {
             email: u.email,
             full_name: u.user_metadata?.full_name || 'Unknown',
             role: u.user_metadata?.role || 'user',
-            created_at: u.created_at
+            created_at: u.created_at,
+            banned_until: u.banned_until
         }));
         res.json(formattedUsers);
     } catch (err) {
@@ -536,6 +537,25 @@ app.delete('/api/admin/users/:id', async (req, res) => {
     } catch (err) {
         console.error('Admin Delete User Error:', err);
         res.status(500).json({ error: 'Failed to delete user' });
+    }
+});
+
+app.put('/api/admin/users/:id/ban', async (req, res) => {
+    try {
+        const userId = req.params.id;
+        const { banned } = req.body; // boolean
+        const supabaseAdmin = createClient(supabaseUrl, process.env.SUPABASE_SERVICE_ROLE_KEY || supabaseKey);
+
+        // "876000h" = 100 years. "none" removes the ban.
+        const banDuration = banned ? '876000h' : 'none';
+
+        const { data, error } = await supabaseAdmin.auth.admin.updateUserById(userId, { ban_duration: banDuration });
+        if (error) throw error;
+
+        res.json({ success: true, message: `User ${banned ? 'banned' : 'unbanned'} successfully` });
+    } catch (err) {
+        console.error('Admin Ban User Error:', err);
+        res.status(500).json({ error: 'Failed to update user ban status' });
     }
 });
 
@@ -605,6 +625,159 @@ app.delete('/api/admin/books/:id', async (req, res) => {
     } catch (err) {
         console.error('Admin Delete Book Error:', err);
         res.status(500).json({ error: 'Failed to delete book' });
+    }
+});
+
+// --- SELLER WITHDRAWAL ROUTES ---
+app.get('/api/seller/balance', async (req, res) => {
+    try {
+        const authHeader = req.headers.authorization;
+        if (!authHeader) return res.status(401).json({ error: 'Unauthorized' });
+
+        const token = authHeader.replace('Bearer ', '');
+        const supabaseAdmin = createClient(supabaseUrl, process.env.SUPABASE_SERVICE_ROLE_KEY || supabaseKey);
+
+        const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
+        if (authError || !user) throw new Error('User not found');
+        const sellerId = user.id;
+
+        const { data: orders, error: ordersError } = await supabaseAdmin
+            .from('orders')
+            .select('amount, books!inner(seller_id)')
+            .eq('books.seller_id', sellerId)
+            .eq('status', 'completed');
+
+        if (ordersError) throw ordersError;
+
+        const totalSales = orders.reduce((sum, order) => sum + parseFloat(order.amount), 0);
+        const totalEarnings = totalSales * 0.85; // 15% platform cut
+
+        const { data: withdrawals, error: wError } = await supabaseAdmin
+            .from('withdrawals')
+            .select('amount')
+            .eq('seller_id', sellerId)
+            .neq('status', 'rejected');
+
+        if (wError) throw wError;
+
+        const totalWithdrawn = withdrawals.reduce((sum, w) => sum + parseFloat(w.amount), 0);
+        const availableBalance = totalEarnings - totalWithdrawn;
+
+        res.json({
+            total_sales: totalSales,
+            total_earnings: totalEarnings,
+            total_withdrawn: totalWithdrawn,
+            available_balance: availableBalance
+        });
+    } catch (err) {
+        console.error('Balance Error:', err);
+        res.status(500).json({ error: 'Failed to fetch balance' });
+    }
+});
+
+app.post('/api/seller/withdraw', async (req, res) => {
+    try {
+        const authHeader = req.headers.authorization;
+        const { amount, bank_name, account_number, account_name } = req.body;
+
+        if (!amount || amount <= 0 || !bank_name || !account_number || !account_name) {
+            return res.status(400).json({ error: 'Invalid withdrawal details' });
+        }
+
+        const token = authHeader.replace('Bearer ', '');
+        const supabaseAdmin = createClient(supabaseUrl, process.env.SUPABASE_SERVICE_ROLE_KEY || supabaseKey);
+
+        const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
+        if (authError || !user) throw new Error('Unauthorized');
+        const { data: orders } = await supabaseAdmin.from('orders').select('amount, books!inner(seller_id)').eq('books.seller_id', user.id).eq('status', 'completed');
+        const { data: withdrawals } = await supabaseAdmin.from('withdrawals').select('amount').eq('seller_id', user.id).neq('status', 'rejected');
+
+        const totalEarnings = (orders || []).reduce((sum, order) => sum + parseFloat(order.amount), 0) * 0.85;
+        const totalWithdrawn = (withdrawals || []).reduce((sum, w) => sum + parseFloat(w.amount), 0);
+        const availableBalance = totalEarnings - totalWithdrawn;
+
+        if (amount > availableBalance) {
+            return res.status(400).json({ error: 'Insufficient balance' });
+        }
+
+        const { error: insertError } = await supabaseAdmin.from('withdrawals').insert([{
+            seller_id: user.id,
+            amount,
+            bank_name,
+            account_number,
+            account_name,
+            status: 'pending'
+        }]);
+
+        if (insertError) throw insertError;
+        res.json({ success: true, message: 'Withdrawal request submitted successfully' });
+    } catch (err) {
+        console.error('Withdraw Error:', err);
+        res.status(500).json({ error: 'Failed to submit withdrawal' });
+    }
+});
+
+app.get('/api/seller/withdrawals', async (req, res) => {
+    try {
+        const authHeader = req.headers.authorization;
+        if (!authHeader) return res.status(401).json({ error: 'Unauthorized' });
+
+        const token = authHeader.replace('Bearer ', '');
+        const supabaseAdmin = createClient(supabaseUrl, process.env.SUPABASE_SERVICE_ROLE_KEY || supabaseKey);
+
+        const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
+        if (authError || !user) throw new Error('Unauthorized');
+
+        const { data, error } = await supabaseAdmin.from('withdrawals').select('*').eq('seller_id', user.id).order('created_at', { ascending: false });
+        if (error) throw error;
+
+        res.json(data);
+    } catch (err) {
+        console.error('Fetch Withdrawals Error:', err);
+        res.status(500).json({ error: 'Failed to fetch withdrawals' });
+    }
+});
+
+// --- ADMIN WITHDRAWAL ROUTES ---
+app.get('/api/admin/withdrawals', async (req, res) => {
+    try {
+        const supabaseAdmin = createClient(supabaseUrl, process.env.SUPABASE_SERVICE_ROLE_KEY || supabaseKey);
+
+        const { data: withdrawals, error } = await supabaseAdmin.from('withdrawals').select('*').order('created_at', { ascending: false });
+        if (error) throw error;
+
+        const { data: { users }, error: authError } = await supabaseAdmin.auth.admin.listUsers();
+
+        let finalWithdrawals = withdrawals;
+        if (!authError && users) {
+            finalWithdrawals = withdrawals.map(w => {
+                const seller = users.find(u => u.id === w.seller_id);
+                return {
+                    ...w,
+                    seller: seller ? {
+                        full_name: seller.user_metadata?.full_name || 'Unknown',
+                        email: seller.email
+                    } : null
+                };
+            });
+        }
+        res.json(finalWithdrawals);
+    } catch (err) {
+        console.error('Admin Fetch Withdrawals Error:', err);
+        res.status(500).json({ error: 'Failed to fetch withdrawals' });
+    }
+});
+
+app.put('/api/admin/withdrawals/:id', async (req, res) => {
+    try {
+        const { status } = req.body;
+        const supabaseAdmin = createClient(supabaseUrl, process.env.SUPABASE_SERVICE_ROLE_KEY || supabaseKey);
+        const { error } = await supabaseAdmin.from('withdrawals').update({ status }).eq('id', req.params.id);
+        if (error) throw error;
+        res.json({ success: true, message: 'Withdrawal status updated' });
+    } catch (err) {
+        console.error('Admin Update Withdrawal Error:', err);
+        res.status(500).json({ error: 'Failed to update withdrawal status' });
     }
 });
 

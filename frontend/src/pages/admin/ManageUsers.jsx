@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Trash2, Search, User } from 'lucide-react'
+import { Trash2, Search, User, Ban, CheckCircle } from 'lucide-react'
 
 const ManageUsers = () => {
     const [users, setUsers] = useState([])
@@ -38,6 +38,26 @@ const ManageUsers = () => {
         } catch (error) {
             console.error("Delete error:", error)
             alert("Failed to delete user.")
+        }
+    }
+
+    const handleToggleBan = async (id, currentlyBanned) => {
+        const action = currentlyBanned ? 'unban' : 'ban';
+        if (!window.confirm(`Are you sure you want to ${action} this user?`)) return;
+
+        try {
+            const response = await fetch(`http://localhost:5000/api/admin/users/${id}/ban`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ banned: !currentlyBanned })
+            })
+            if (!response.ok) throw new Error(`Failed to ${action} user`)
+
+            alert(`User ${action}ned successfully`)
+            fetchUsers()
+        } catch (error) {
+            console.error(`${action} error:`, error)
+            alert(`Failed to ${action} user.`)
         }
     }
 
@@ -98,19 +118,39 @@ const ManageUsers = () => {
                                                 u.role === 'seller' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'}`}>
                                             {u.role || 'user'}
                                         </span>
+                                        {u.banned_until && new Date(u.banned_until) > new Date() && (
+                                            <span className="ml-2 inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold uppercase bg-red-100 text-red-700">
+                                                Banned
+                                            </span>
+                                        )}
                                     </td>
                                     <td className="p-4 text-sm text-[var(--color-text-light)]">
                                         {new Date(u.created_at).toLocaleDateString()}
                                     </td>
                                     <td className="p-4 text-right">
                                         {u.role !== 'admin' && (
-                                            <button
-                                                onClick={() => handleDeleteUser(u.id)}
-                                                className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                                                title="Delete User"
-                                            >
-                                                <Trash2 className="w-4 h-4" />
-                                            </button>
+                                            <div className="flex items-center justify-end gap-2">
+                                                <button
+                                                    onClick={() => {
+                                                        const isBanned = u.banned_until && new Date(u.banned_until) > new Date();
+                                                        handleToggleBan(u.id, isBanned);
+                                                    }}
+                                                    className={`p-2 rounded-lg transition-colors ${u.banned_until && new Date(u.banned_until) > new Date()
+                                                            ? 'text-green-500 hover:bg-green-50'
+                                                            : 'text-orange-500 hover:bg-orange-50'
+                                                        }`}
+                                                    title={u.banned_until && new Date(u.banned_until) > new Date() ? "Unban User" : "Ban User"}
+                                                >
+                                                    {u.banned_until && new Date(u.banned_until) > new Date() ? <CheckCircle className="w-4 h-4" /> : <Ban className="w-4 h-4" />}
+                                                </button>
+                                                <button
+                                                    onClick={() => handleDeleteUser(u.id)}
+                                                    className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                                    title="Delete User"
+                                                >
+                                                    <Trash2 className="w-4 h-4" />
+                                                </button>
+                                            </div>
                                         )}
                                     </td>
                                 </tr>

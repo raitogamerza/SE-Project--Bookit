@@ -5,11 +5,20 @@ import { supabase } from '../../services/supabase'
 
 const Withdrawals = () => {
     const { user } = useAuth()
-    const [balance, setBalance] = useState(0)
+    const [balanceData, setBalanceData] = useState({
+        total_sales: 0,
+        total_earnings: 0,
+        total_withdrawn: 0,
+        available_balance: 0
+    });
     const [history, setHistory] = useState([])
     const [loading, setLoading] = useState(true)
     const [requesting, setRequesting] = useState(false)
+
     const [amount, setAmount] = useState('')
+    const [bankName, setBankName] = useState('')
+    const [accountNumber, setAccountNumber] = useState('')
+    const [accountName, setAccountName] = useState('')
 
     useEffect(() => {
         if (user) {
@@ -20,48 +29,27 @@ const Withdrawals = () => {
     const fetchData = async () => {
         setLoading(true)
         try {
-            // 1. Calculate Available Balance
-            // We sum up all 'completed' orders where the seller is the owner of the book,
-            // minus any 'approved' or 'pending' withdrawals. For simplicity in this demo,
-            // we will calculate total earnings (70% cut) and subtract total requested withdrawals.
+            const { data: { session } } = await supabase.auth.getSession();
+            const token = session?.access_token;
+            if (!token) throw new Error("No access token available");
 
-            // Get all completed orders for this seller's books
-            const { data: books } = await supabase.from('books').select('id, price').eq('seller_id', user.id)
-            const bookIds = books?.map(b => b.id) || []
-
-            let totalEarnings = 0;
-            if (bookIds.length > 0) {
-                const { data: orders } = await supabase
-                    .from('orders')
-                    .select('amount')
-                    .in('book_id', bookIds)
-                    .eq('status', 'completed')
-
-                const totalSales = orders?.reduce((sum, order) => sum + (Number(order.amount) || 0), 0) || 0;
-                totalEarnings = totalSales * 0.70; // 70% cut for sellers
+            // Fetch balance
+            const balanceRes = await fetch('http://localhost:5000/api/seller/balance', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (balanceRes.ok) {
+                const bData = await balanceRes.json();
+                setBalanceData(bData);
             }
 
-            // Get all withdrawals (pending or approved)
-            const { data: withdrawalsList } = await supabase
-                .from('withdrawals')
-                .select('*')
-                .eq('seller_id', user.id)
-                .neq('status', 'rejected')
-                .order('created_at', { ascending: false })
-
-            const totalWithdrawn = withdrawalsList?.reduce((sum, w) => sum + Number(w.amount), 0) || 0;
-
-            setBalance(Math.max(0, totalEarnings - totalWithdrawn))
-
-            // Fetch visual history including rejected ones
-            const { data: fullHistory } = await supabase
-                .from('withdrawals')
-                .select('*')
-                .eq('seller_id', user.id)
-                .order('created_at', { ascending: false })
-
-            setHistory(fullHistory || [])
-
+            // Fetch history
+            const historyRes = await fetch('http://localhost:5000/api/seller/withdrawals', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (historyRes.ok) {
+                const hData = await historyRes.json();
+                setHistory(hData);
+            }
         } catch (err) {
             console.error("Error fetching withdrawal data:", err)
         } finally {
@@ -73,32 +61,50 @@ const Withdrawals = () => {
         e.preventDefault()
         const withdrawAmount = Number(amount)
 
-        if (withdrawAmount < 100) {
-            alert("Minimum withdrawal amount is ฿100")
+        if (withdrawAmount < 1) {
+            alert("Minimum withdrawal amount is ฿1")
             return
         }
-        if (withdrawAmount > balance) {
+        if (withdrawAmount > balanceData.available_balance) {
             alert("Insufficient balance")
+            return
+        }
+        if (!bankName || !accountNumber || !accountName) {
+            alert("Please fill in all bank details")
             return
         }
 
         setRequesting(true)
         try {
-            // Note: RLS policy ensures users can only insert for themselves
-            const { error } = await supabase.from('withdrawals').insert([{
-                seller_id: user.id,
-                amount: withdrawAmount,
-                status: 'pending'
-            }])
+            const { data: { session } } = await supabase.auth.getSession();
+            const token = session?.access_token;
 
-            if (error) throw error
+            const res = await fetch('http://localhost:5000/api/seller/withdraw', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    amount: withdrawAmount,
+                    bank_name: bankName,
+                    account_number: accountNumber,
+                    account_name: accountName
+                })
+            });
+
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Failed to request withdrawal');
 
             alert("Withdrawal request submitted successfully!")
             setAmount('')
+            setBankName('')
+            setAccountNumber('')
+            setAccountName('')
             fetchData() // Refresh data
         } catch (err) {
             console.error("Withdrawal error:", err)
-            alert("Failed to request withdrawal.")
+            alert(err.message)
         } finally {
             setRequesting(false)
         }
@@ -106,7 +112,8 @@ const Withdrawals = () => {
 
     const getStatusIcon = (status) => {
         switch (status) {
-            case 'approved': return <CheckCircle2 className="w-5 h-5 text-green-500" />
+            case 'approved':
+            case 'completed': return <CheckCircle2 className="w-5 h-5 text-green-500" />
             case 'rejected': return <XCircle className="w-5 h-5 text-red-500" />
             default: return <Clock className="w-5 h-5 text-orange-500" />
         }
@@ -116,84 +123,134 @@ const Withdrawals = () => {
 
     return (
         <div className="p-8 max-w-5xl mx-auto">
-            <header className="mb-8">
-                <h1 className="text-2xl font-bold text-[var(--color-text-main)]">Withdrawals</h1>
-                <p className="text-[var(--color-text-light)]">Manage your earnings and payout requests</p>
+            <header className="mb-8 border-b border-[var(--color-secondary)]/20 pb-4">
+                <h1 className="text-3xl font-black text-[var(--color-text-main)] drop-shadow-sm">Wallet & Payouts</h1>
+                <p className="text-[var(--color-text-light)] mt-2">Manage your earnings and request bank transfers</p>
             </header>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                {/* Available Balance Card */}
-                <div className="md:col-span-1">
-                    <div className="bg-gradient-to-br from-orange-500 to-orange-700 rounded-2xl p-6 text-white shadow-lg relative overflow-hidden">
-                        <Wallet className="absolute right-[-20%] top-[-20%] w-48 h-48 opacity-10" />
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                {/* Left Column: Balance & Request Form */}
+                <div className="lg:col-span-1 space-y-6">
+                    {/* Available Balance Card */}
+                    <div className="bg-gradient-to-br from-[var(--color-primary)] to-[var(--color-primary-dark)] rounded-3xl p-6 text-[var(--color-text-inverse)] shadow-lg relative overflow-hidden">
+                        <Wallet className="absolute right-[-10%] top-[-10%] w-48 h-48 opacity-10" />
+                        <h2 className="text-[var(--color-text-inverse)]/80 mb-2 font-medium">Available Balance</h2>
+                        <div className="text-4xl font-black mb-6 tracking-tight">฿{balanceData.available_balance.toFixed(2)}</div>
 
-                        <h2 className="text-orange-100 mb-2 font-medium">Available Balance</h2>
-                        <div className="text-4xl font-bold mb-6">฿{balance.toFixed(2)}</div>
-
-                        <form onSubmit={handleWithdraw} className="space-y-4 relative z-10 bg-white/10 p-4 rounded-xl backdrop-blur-sm">
+                        <div className="grid grid-cols-2 gap-4 text-sm bg-black/10 rounded-xl p-3 backdrop-blur-sm">
                             <div>
-                                <label className="block text-xs text-orange-100 mb-1">Amount to withdraw</label>
-                                <div className="relative">
-                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-white/50 font-bold">฿</span>
-                                    <input
-                                        type="number"
-                                        min="100"
-                                        max={balance}
-                                        step="0.01"
-                                        required
-                                        value={amount}
-                                        onChange={(e) => setAmount(e.target.value)}
-                                        className="w-full bg-white/20 border border-white/30 text-white rounded-lg pl-8 pr-4 py-2 placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-white/50"
-                                        placeholder="Min. 100"
-                                    />
-                                </div>
+                                <p className="text-[var(--color-text-inverse)]/60">Total Sales</p>
+                                <p className="font-bold">฿{balanceData.total_sales.toFixed(2)}</p>
+                            </div>
+                            <div>
+                                <p className="text-[var(--color-text-inverse)]/60">Withdrawn</p>
+                                <p className="font-bold">฿{balanceData.total_withdrawn.toFixed(2)}</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Withdrawal Form */}
+                    <div className="bg-[var(--color-surface)] rounded-3xl p-6 shadow-sm border border-[var(--color-secondary)]/20">
+                        <h3 className="text-lg font-bold text-[var(--color-text-main)] mb-4">Request Payout</h3>
+                        <form onSubmit={handleWithdraw} className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-[var(--color-text-light)] mb-1">Amount to withdraw (฿)</label>
+                                <input
+                                    type="number"
+                                    min="1"
+                                    max={balanceData.available_balance}
+                                    step="0.01"
+                                    required
+                                    value={amount}
+                                    onChange={(e) => setAmount(e.target.value)}
+                                    className="w-full bg-[var(--color-background)] border border-[var(--color-secondary)]/30 text-[var(--color-text-main)] rounded-xl px-4 py-3 focus:outline-none focus:border-[var(--color-primary)] focus:ring-1 focus:ring-[var(--color-primary)] transition-colors"
+                                    placeholder={`Max: ฿${balanceData.available_balance.toFixed(2)}`}
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-[var(--color-text-light)] mb-1">Bank Name</label>
+                                <input
+                                    type="text"
+                                    required
+                                    value={bankName}
+                                    onChange={(e) => setBankName(e.target.value)}
+                                    className="w-full bg-[var(--color-background)] border border-[var(--color-secondary)]/30 text-[var(--color-text-main)] rounded-xl px-4 py-3 focus:outline-none focus:border-[var(--color-primary)] focus:ring-1 focus:ring-[var(--color-primary)] transition-colors"
+                                    placeholder="e.g. Kasikorn Bank"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-[var(--color-text-light)] mb-1">Account Number</label>
+                                <input
+                                    type="text"
+                                    required
+                                    value={accountNumber}
+                                    onChange={(e) => setAccountNumber(e.target.value)}
+                                    className="w-full bg-[var(--color-background)] border border-[var(--color-secondary)]/30 text-[var(--color-text-main)] rounded-xl px-4 py-3 focus:outline-none focus:border-[var(--color-primary)] focus:ring-1 focus:ring-[var(--color-primary)] transition-colors"
+                                    placeholder="012-3-45678-9"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-[var(--color-text-light)] mb-1">Account Name</label>
+                                <input
+                                    type="text"
+                                    required
+                                    value={accountName}
+                                    onChange={(e) => setAccountName(e.target.value)}
+                                    className="w-full bg-[var(--color-background)] border border-[var(--color-secondary)]/30 text-[var(--color-text-main)] rounded-xl px-4 py-3 focus:outline-none focus:border-[var(--color-primary)] focus:ring-1 focus:ring-[var(--color-primary)] transition-colors"
+                                    placeholder="John Doe"
+                                />
                             </div>
                             <button
                                 type="submit"
-                                disabled={requesting || balance < 100 || !amount}
-                                className="w-full bg-white text-orange-600 font-bold py-2 rounded-lg hover:bg-orange-50 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                                disabled={requesting || balanceData.available_balance < 1 || !amount}
+                                className="w-full bg-[var(--color-primary)] text-[var(--color-text-inverse)] font-bold py-3 px-4 rounded-xl hover:bg-[var(--color-primary-dark)] transition-all transform active:scale-[0.98] disabled:opacity-50 disabled:active:scale-100 flex items-center justify-center gap-2 mt-4 shadow-lg shadow-[var(--color-primary)]/20"
                             >
                                 {requesting ? 'Processing...' : (
-                                    <>Request Payout <ArrowUpRight className="w-4 h-4" /></>
+                                    <>Submit Request <ArrowUpRight className="w-5 h-5" /></>
                                 )}
                             </button>
                         </form>
                     </div>
                 </div>
 
-                {/* History Section */}
-                <div className="md:col-span-2">
-                    <div className="bg-[var(--color-surface)] rounded-2xl shadow-sm border border-[var(--color-secondary)]/10 p-6 h-full">
-                        <h2 className="text-lg font-bold text-[var(--color-text-main)] mb-6 flex items-center gap-2">
-                            <History className="w-5 h-5 text-[var(--color-primary)]" />
-                            Withdrawal History
+                {/* Right Column: History Section */}
+                <div className="lg:col-span-2">
+                    <div className="bg-[var(--color-surface)] rounded-3xl shadow-sm border border-[var(--color-secondary)]/20 p-6 sm:p-8 h-full">
+                        <h2 className="text-xl font-bold text-[var(--color-text-main)] mb-6 flex items-center gap-2 border-b border-[var(--color-secondary)]/10 pb-4">
+                            <History className="w-6 h-6 text-[var(--color-primary)]" />
+                            Transaction History
                         </h2>
 
                         {history.length === 0 ? (
-                            <div className="text-center text-[var(--color-text-light)] py-8">
-                                <p>No withdrawal history found.</p>
+                            <div className="text-center text-[var(--color-text-light)] py-12 bg-[var(--color-background)] rounded-2xl border border-[var(--color-secondary)]/10">
+                                <History className="w-12 h-12 mx-auto text-[var(--color-secondary)]/40 mb-3" />
+                                <p className="font-medium text-lg">No withdrawal history found</p>
+                                <p className="text-sm mt-1">Your payout requests will appear here.</p>
                             </div>
                         ) : (
-                            <div className="divide-y divide-[var(--color-secondary)]/10">
+                            <div className="space-y-4">
                                 {history.map((item) => (
-                                    <div key={item.id} className="py-4 flex items-center justify-between">
+                                    <div key={item.id} className="p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between bg-[var(--color-background)] rounded-2xl border border-[var(--color-secondary)]/10 hover:border-[var(--color-primary)]/30 transition-colors gap-4">
                                         <div className="flex items-center gap-4">
-                                            <div className="bg-[var(--color-background)] p-3 rounded-xl border border-[var(--color-secondary)]/10">
+                                            <div className="bg-[var(--color-surface)] p-3 rounded-xl border border-[var(--color-secondary)]/10 shadow-sm">
                                                 {getStatusIcon(item.status)}
                                             </div>
                                             <div>
-                                                <p className="font-bold text-[var(--color-text-main)]">Withdrawal Request</p>
-                                                <p className="text-sm text-[var(--color-text-light)]">
+                                                <p className="font-bold text-[var(--color-text-main)] text-lg">Bank Transfer</p>
+                                                <p className="text-sm text-[var(--color-text-light)] mt-1">
+                                                    {item.bank_name} •••• {item.account_number.slice(-4)}
+                                                </p>
+                                                <p className="text-xs text-[var(--color-text-light)]/70 mt-1">
                                                     {new Date(item.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                                                 </p>
                                             </div>
                                         </div>
 
-                                        <div className="text-right">
-                                            <p className="font-bold text-lg text-[var(--color-primary-dark)]">฿{Number(item.amount).toFixed(2)}</p>
-                                            <span className={`text-xs font-semibold px-2 py-1 rounded-full ${item.status === 'approved' ? 'bg-green-100 text-green-700' :
-                                                    item.status === 'rejected' ? 'bg-red-100 text-red-700' :
-                                                        'bg-orange-100 text-orange-700'
+                                        <div className="text-left sm:text-right w-full sm:w-auto flex flex-row sm:flex-col items-center sm:items-end justify-between sm:justify-center">
+                                            <p className="font-black text-xl text-[var(--color-text-main)]">฿{Number(item.amount).toFixed(2)}</p>
+                                            <span className={`text-xs font-bold px-3 py-1.5 rounded-full mt-2 inline-block ${item.status === 'approved' || item.status === 'completed' ? 'bg-green-100 text-green-700 border border-green-200' :
+                                                item.status === 'rejected' ? 'bg-red-100 text-red-700 border border-red-200' :
+                                                    'bg-orange-100 text-orange-700 border border-orange-200'
                                                 }`}>
                                                 {item.status.toUpperCase()}
                                             </span>

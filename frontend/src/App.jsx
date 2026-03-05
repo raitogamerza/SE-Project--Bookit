@@ -31,6 +31,7 @@ import Withdrawals from './pages/seller/Withdrawals'
 import AdminDashboard from './pages/admin/AdminDashboard'
 import ManageUsers from './pages/admin/ManageUsers'
 import ManageBooks from './pages/admin/ManageBooks'
+import ManageWithdrawals from './pages/admin/ManageWithdrawals'
 
 function App() {
   return (
@@ -64,6 +65,7 @@ function App() {
             <Route path="dashboard" element={<AdminDashboard />} />
             <Route path="users" element={<ManageUsers />} />
             <Route path="books" element={<ManageBooks />} />
+            <Route path="withdrawals" element={<ManageWithdrawals />} />
           </Route>
 
           {/* User/Public Routes - Main Site (Navbar + Footer) */}

@@ -12,8 +12,8 @@ const AdminLayout = () => {
     const isActive = (path) => location.pathname === path
 
     const navLinkClass = (path) => `flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all ${isActive(path)
-            ? 'bg-[var(--color-primary)] text-[var(--color-text-inverse)] shadow-md'
-            : 'text-[var(--color-text-light)] hover:bg-[var(--color-background)] hover:text-[var(--color-text-main)]'
+        ? 'bg-[var(--color-primary)] text-[var(--color-text-inverse)] shadow-md'
+        : 'text-[var(--color-text-light)] hover:bg-[var(--color-background)] hover:text-[var(--color-text-main)]'
         }`
 
     return (
@@ -34,6 +34,9 @@ const AdminLayout = () => {
                     </Link>
                     <Link to="/admin/books" className={navLinkClass('/admin/books')}>
                         <BookOpen className="w-5 h-5" /> Books
+                    </Link>
+                    <Link to="/admin/withdrawals" className={navLinkClass('/admin/withdrawals')}>
+                        <ShoppingBag className="w-5 h-5" /> Withdrawals
                     </Link>
                     <Link to="#" className={navLinkClass('/admin/orders')}>
                         <ShoppingBag className="w-5 h-5" /> Orders
