@@ -68,6 +68,33 @@ app.post('/api/webhook', express.raw({ type: 'application/json' }), async (reque
 // JSON middleware for all other routes
 app.use(express.json());
 
+// Admin Authorization Middleware
+const requireAdmin = async (req, res, next) => {
+    try {
+        const authHeader = req.headers.authorization;
+        if (!authHeader) return res.status(401).json({ error: 'Unauthorized: Missing token' });
+
+        const token = authHeader.replace('Bearer ', '');
+        const supabaseAdmin = createClient(supabaseUrl, process.env.SUPABASE_SERVICE_ROLE_KEY || supabaseKey);
+
+        const { data: { user }, error } = await supabaseAdmin.auth.getUser(token);
+        if (error || !user) return res.status(401).json({ error: 'Unauthorized: Invalid token' });
+
+        if (user.user_metadata?.role !== 'admin') {
+            return res.status(403).json({ error: 'Forbidden: Administrative access required' });
+        }
+
+        req.user = user;
+        next();
+    } catch (err) {
+        console.error('Admin Auth Error:', err);
+        res.status(500).json({ error: 'Internal Server Error during authorization' });
+    }
+};
+
+// Protect all admin routes automatically
+app.use('/api/admin', requireAdmin);
+
 // Routes
 
 // Basic health check route
@@ -851,6 +878,9 @@ app.get('/api/seller/balance', async (req, res) => {
     }
 });
 
+// Active Withdrawal Locks to prevent Race Conditions (Double Spending)
+const activeWithdrawals = new Set();
+
 app.post('/api/seller/withdraw', async (req, res) => {
     try {
         const authHeader = req.headers.authorization;
@@ -865,28 +895,38 @@ app.post('/api/seller/withdraw', async (req, res) => {
 
         const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
         if (authError || !user) throw new Error('Unauthorized');
-        const { data: orders } = await supabaseAdmin.from('orders').select('amount, books!inner(seller_id)').eq('books.seller_id', user.id).eq('status', 'completed');
-        const { data: withdrawals } = await supabaseAdmin.from('withdrawals').select('amount').eq('seller_id', user.id).neq('status', 'rejected');
 
-        const totalEarnings = (orders || []).reduce((sum, order) => sum + parseFloat(order.amount), 0) * 0.85;
-        const totalWithdrawn = (withdrawals || []).reduce((sum, w) => sum + parseFloat(w.amount), 0);
-        const availableBalance = totalEarnings - totalWithdrawn;
-
-        if (amount > availableBalance) {
-            return res.status(400).json({ error: 'Insufficient balance' });
+        if (activeWithdrawals.has(user.id)) {
+            return res.status(429).json({ error: 'Processing previous withdrawal request. Please wait.' });
         }
+        activeWithdrawals.add(user.id);
 
-        const { error: insertError } = await supabaseAdmin.from('withdrawals').insert([{
-            seller_id: user.id,
-            amount,
-            bank_name,
-            account_number,
-            account_name,
-            status: 'pending'
-        }]);
+        try {
+            const { data: orders } = await supabaseAdmin.from('orders').select('amount, books!inner(seller_id)').eq('books.seller_id', user.id).eq('status', 'completed');
+            const { data: withdrawals } = await supabaseAdmin.from('withdrawals').select('amount').eq('seller_id', user.id).neq('status', 'rejected');
 
-        if (insertError) throw insertError;
-        res.json({ success: true, message: 'Withdrawal request submitted successfully' });
+            const totalEarnings = (orders || []).reduce((sum, order) => sum + parseFloat(order.amount), 0) * 0.85;
+            const totalWithdrawn = (withdrawals || []).reduce((sum, w) => sum + parseFloat(w.amount), 0);
+            const availableBalance = totalEarnings - totalWithdrawn;
+
+            if (amount > availableBalance) {
+                return res.status(400).json({ error: 'Insufficient balance' });
+            }
+
+            const { error: insertError } = await supabaseAdmin.from('withdrawals').insert([{
+                seller_id: user.id,
+                amount,
+                bank_name,
+                account_number,
+                account_name,
+                status: 'pending'
+            }]);
+
+            if (insertError) throw insertError;
+            res.json({ success: true, message: 'Withdrawal request submitted successfully' });
+        } finally {
+            activeWithdrawals.delete(user.id);
+        }
     } catch (err) {
         console.error('Withdraw Error:', err);
         res.status(500).json({ error: 'Failed to submit withdrawal' });
