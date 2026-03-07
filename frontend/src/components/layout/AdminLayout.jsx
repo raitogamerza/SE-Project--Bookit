@@ -1,12 +1,19 @@
-import { Outlet, Link, useLocation } from 'react-router-dom'
-import { LayoutDashboard, Users, BookOpen, ShoppingBag, Settings, LogOut } from 'lucide-react'
+import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom'
+import { LayoutDashboard, Users, BookOpen, ShoppingBag, Settings, LogOut, Home } from 'lucide-react'
+import { useAuth } from '../../context/AuthContext'
 
 const AdminLayout = () => {
     const location = useLocation()
+    const { logout } = useAuth()
+    const navigate = useNavigate()
 
-    const handleLogout = () => {
-        localStorage.removeItem('admin_token')
-        window.location.href = '/login' // Redirect to main login
+    const handleLogout = async () => {
+        try {
+            await logout()
+            navigate('/login')
+        } catch (error) {
+            console.error("Failed to log out", error)
+        }
     }
 
     const isActive = (path) => location.pathname === path
@@ -47,6 +54,9 @@ const AdminLayout = () => {
                 </nav>
 
                 <div className="p-4 border-t border-[var(--color-secondary)]/20">
+                    <Link to="/" className="flex items-center gap-3 px-4 py-3 text-[var(--color-primary)] hover:bg-[var(--color-primary)]/10 rounded-xl transition-colors w-full font-medium mb-1">
+                        <Home className="w-5 h-5" /> Go to Storefront
+                    </Link>
                     <button onClick={handleLogout} className="flex items-center gap-3 px-4 py-3 text-red-500 hover:bg-red-500/10 hover:text-red-400 rounded-xl transition-colors w-full font-medium">
                         <LogOut className="w-5 h-5" /> Logout
                     </button>
