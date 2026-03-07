@@ -27,6 +27,13 @@ const ReadPage = () => {
     const [scale, setScale] = useState(1.0)
     const [isPdfLoading, setIsPdfLoading] = useState(true)
 
+    // Save reading progress whenever page changes
+    useEffect(() => {
+        if (!isPdfLoading && numPages) {
+            localStorage.setItem(`bookit-progress-${user?.id || 'guest'}-${id}`, pageNumber.toString());
+        }
+    }, [pageNumber, id, user, isPdfLoading, numPages]);
+
     useEffect(() => {
         const fetchBook = async () => {
             try {
@@ -83,7 +90,20 @@ const ReadPage = () => {
 
     function onDocumentLoadSuccess({ numPages }) {
         setNumPages(numPages)
-        setPageNumber(1)
+
+        // Restore previous reading progress
+        const savedProgress = localStorage.getItem(`bookit-progress-${user?.id || 'guest'}-${id}`);
+        if (savedProgress) {
+            const parsedPage = parseInt(savedProgress, 10);
+            if (!isNaN(parsedPage) && parsedPage >= 1 && parsedPage <= numPages) {
+                setPageNumber(parsedPage);
+            } else {
+                setPageNumber(1);
+            }
+        } else {
+            setPageNumber(1);
+        }
+
         setIsPdfLoading(false)
     }
 
