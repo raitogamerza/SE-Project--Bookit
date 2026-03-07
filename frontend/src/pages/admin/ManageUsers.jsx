@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Trash2, Search, User, Ban, CheckCircle } from 'lucide-react'
+import { supabase } from '../../services/supabase'
 
 const ManageUsers = () => {
     const [users, setUsers] = useState([])
@@ -13,7 +14,11 @@ const ManageUsers = () => {
     const fetchUsers = async () => {
         setLoading(true)
         try {
-            const response = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/admin/users`)
+            const { data: { session } } = await supabase.auth.getSession()
+            const token = session?.access_token
+            const response = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/admin/users`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            })
             if (!response.ok) throw new Error('Failed to fetch users')
             const data = await response.json()
             setUsers(data)
@@ -28,8 +33,11 @@ const ManageUsers = () => {
         if (!window.confirm('Are you sure you want to delete this user? This action cannot be undone.')) return;
 
         try {
+            const { data: { session } } = await supabase.auth.getSession()
+            const token = session?.access_token
             const response = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/admin/users/${id}`, {
-                method: 'DELETE'
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${token}` }
             })
             if (!response.ok) throw new Error('Failed to delete user')
 
@@ -46,9 +54,14 @@ const ManageUsers = () => {
         if (!window.confirm(`Are you sure you want to ${action} this user?`)) return;
 
         try {
+            const { data: { session } } = await supabase.auth.getSession()
+            const token = session?.access_token
             const response = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/admin/users/${id}/ban`, {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
                 body: JSON.stringify({ banned: !currentlyBanned })
             })
             if (!response.ok) throw new Error(`Failed to ${action} user`)
@@ -136,8 +149,8 @@ const ManageUsers = () => {
                                                         handleToggleBan(u.id, isBanned);
                                                     }}
                                                     className={`p-2 rounded-lg transition-colors ${u.banned_until && new Date(u.banned_until) > new Date()
-                                                            ? 'text-green-500 hover:bg-green-50'
-                                                            : 'text-orange-500 hover:bg-orange-50'
+                                                        ? 'text-green-500 hover:bg-green-50'
+                                                        : 'text-orange-500 hover:bg-orange-50'
                                                         }`}
                                                     title={u.banned_until && new Date(u.banned_until) > new Date() ? "Unban User" : "Ban User"}
                                                 >

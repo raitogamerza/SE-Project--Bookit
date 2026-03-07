@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { Trash2, Search, Book, Edit } from 'lucide-react'
+import { supabase } from '../../services/supabase'
 
 const ManageBooks = () => {
     const [books, setBooks] = useState([])
@@ -14,7 +15,11 @@ const ManageBooks = () => {
     const fetchBooks = async () => {
         setLoading(true)
         try {
-            const response = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/admin/books`)
+            const { data: { session } } = await supabase.auth.getSession()
+            const token = session?.access_token
+            const response = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/admin/books`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            })
             if (!response.ok) throw new Error('Failed to fetch books')
             const data = await response.json()
             setBooks(data)
@@ -29,8 +34,11 @@ const ManageBooks = () => {
         if (!window.confirm('Are you sure you want to delete this book? This will also delete all associated files.')) return;
 
         try {
+            const { data: { session } } = await supabase.auth.getSession()
+            const token = session?.access_token
             const response = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/admin/books/${id}`, {
-                method: 'DELETE'
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${token}` }
             })
             if (!response.ok) throw new Error('Failed to delete book')
 

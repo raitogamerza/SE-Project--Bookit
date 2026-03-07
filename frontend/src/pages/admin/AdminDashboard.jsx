@@ -17,15 +17,19 @@ const AdminDashboard = () => {
     const fetchData = async () => {
         setLoading(true)
         try {
+            const { data: { session } } = await supabase.auth.getSession()
+            const token = session?.access_token
+            const headers = { 'Authorization': `Bearer ${token}` }
+
             // 1. Fetch Stats
-            const statsRes = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/admin/dashboard`);
+            const statsRes = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/admin/dashboard`, { headers });
             if (statsRes.ok) {
                 const statsData = await statsRes.json();
                 setStats(statsData);
             }
 
             // 2. Fetch all withdrawals with seller info
-            const withRes = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/admin/withdrawals`);
+            const withRes = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/admin/withdrawals`, { headers });
             if (withRes.ok) {
                 const withdrawalList = await withRes.json();
                 setWithdrawals(withdrawalList);
@@ -41,9 +45,14 @@ const AdminDashboard = () => {
         if (!confirm(`Are you sure you want to mark this request as ${newStatus.toUpperCase()}?`)) return;
 
         try {
+            const { data: { session } } = await supabase.auth.getSession()
+            const token = session?.access_token
             const res = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/admin/withdrawals/${id}`, {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
                 body: JSON.stringify({ status: newStatus })
             });
 

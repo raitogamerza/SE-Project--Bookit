@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { CheckCircle, XCircle, Clock, CheckCircle2 } from 'lucide-react'
+import { supabase } from '../../services/supabase'
 
 const ManageWithdrawals = () => {
     const [withdrawals, setWithdrawals] = useState([])
@@ -12,7 +13,11 @@ const ManageWithdrawals = () => {
     const fetchWithdrawals = async () => {
         setLoading(true)
         try {
-            const res = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/admin/withdrawals`)
+            const { data: { session } } = await supabase.auth.getSession()
+            const token = session?.access_token
+            const res = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/admin/withdrawals`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            })
             if (res.ok) {
                 const data = await res.json()
                 setWithdrawals(data)
@@ -27,9 +32,14 @@ const ManageWithdrawals = () => {
     const handleUpdateStatus = async (id, status) => {
         if (!window.confirm(`Are you sure you want to mark this request as ${status}?`)) return
         try {
+            const { data: { session } } = await supabase.auth.getSession()
+            const token = session?.access_token
             const res = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/admin/withdrawals/${id}`, {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
                 body: JSON.stringify({ status })
             })
             if (res.ok) {
@@ -94,8 +104,8 @@ const ManageWithdrawals = () => {
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border ${w.status === 'pending' ? 'bg-orange-100 text-orange-700 border-orange-200' :
-                                                    w.status === 'rejected' ? 'bg-red-100 text-red-700 border-red-200' :
-                                                        'bg-green-100 text-green-700 border-green-200'
+                                                w.status === 'rejected' ? 'bg-red-100 text-red-700 border-red-200' :
+                                                    'bg-green-100 text-green-700 border-green-200'
                                                 }`}>
                                                 {w.status === 'pending' && <Clock className="w-3.5 h-3.5" />}
                                                 {w.status === 'rejected' && <XCircle className="w-3.5 h-3.5" />}
