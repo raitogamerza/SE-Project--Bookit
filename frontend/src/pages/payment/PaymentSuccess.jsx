@@ -14,29 +14,21 @@ const PaymentSuccess = () => {
 
     useEffect(() => {
         const fulfillOrder = async () => {
-            // Because Stripe redirects, React context (cart) is often wiped. Read from the backup storage.
-            const pendingOrderStr = localStorage.getItem('bookit-pending-order');
-            let itemsToFulfill = cart;
-
-            if (pendingOrderStr) {
-                try {
-                    itemsToFulfill = JSON.parse(pendingOrderStr);
-                } catch (e) { console.error(e) }
-            }
-
-            if (itemsToFulfill.length > 0 && user && !hasFulfilled.current) {
+            if (paymentIntent && user && !hasFulfilled.current) {
                 hasFulfilled.current = true; // Set flag immediately to prevent double calls
                 try {
-                    await fetch('http://localhost:5000/api/fulfill-order-test', {
+                    // Secure verification via backend calling Stripe API
+                    await fetch('http://localhost:5000/api/verify-payment', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ items: itemsToFulfill, userId: user.id })
+                        body: JSON.stringify({ paymentIntentId: paymentIntent })
                     });
-                    // Clear the data once they hit the success page and order is fulfilled
-                    clearCart()
+
+                    // Clear the cart regardless
+                    clearCart();
                     localStorage.removeItem('bookit-pending-order');
                 } catch (error) {
-                    console.error("Failed to fulfill test order", error);
+                    console.error("Failed to verify and fulfill order", error);
                     hasFulfilled.current = false; // Reset if it failed
                 }
             }

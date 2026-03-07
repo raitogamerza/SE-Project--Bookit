@@ -131,31 +131,61 @@ app.post('/api/checkout-direct', async (req, res) => {
     }
 });
 
-// Fallback Route for local testing: Force fulfill an order without Stripe Webhook
-app.post('/api/fulfill-order-test', async (req, res) => {
+// Route to securely verify payment and fulfill order
+app.post('/api/verify-payment', async (req, res) => {
     try {
-        const { items, userId } = req.body;
-        if (!items || items.length === 0 || !userId) {
-            return res.status(400).json({ error: 'Missing items or user ID' });
+        const { paymentIntentId } = req.body;
+        if (!paymentIntentId) {
+            return res.status(400).json({ error: 'Missing payment intent ID' });
         }
 
-        console.log(`[Test Fulfillment] Fulfilling order for User ${userId}`);
+        // Retrieve the payment intent securely from Stripe
+        const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
 
-        for (const item of items) {
-            const { error: insertError } = await supabase.from('orders').insert([{
-                user_id: userId,
-                book_id: item.id,
-                amount: item.price,
-                status: 'completed'
-            }]);
-            if (insertError) {
-                console.error("❌ Supabase Insert Error:", insertError);
-                return res.status(500).json({ error: "Failed to insert order into DB: " + insertError.message });
+        if (paymentIntent.status !== 'succeeded') {
+            return res.status(400).json({ error: 'Payment not successful' });
+        }
+
+        const userId = paymentIntent.metadata?.userId;
+        let bookIds = [];
+        try {
+            bookIds = JSON.parse(paymentIntent.metadata?.bookIds || '[]');
+        } catch (e) {
+            console.error('Failed to parse bookIds from metadata', e);
+        }
+
+        if (!userId || bookIds.length === 0) {
+            return res.status(400).json({ error: 'Invalid payment metadata' });
+        }
+
+        console.log(`[Verify Payment] Fulfilling order for User ${userId}, Books: ${bookIds}`);
+
+        // Fulfill the order securely
+        for (const bookId of bookIds) {
+            // Check if order already exists to prevent duplicate fulfillment
+            const { data: existingOrder } = await supabase
+                .from('orders')
+                .select('id')
+                .eq('user_id', userId)
+                .eq('book_id', bookId)
+                .single();
+
+            if (!existingOrder) {
+                const { data: book } = await supabase.from('books').select('price').eq('id', bookId).single();
+                if (book) {
+                    await supabase.from('orders').insert([{
+                        user_id: userId,
+                        book_id: bookId,
+                        amount: book.price,
+                        status: 'completed'
+                    }]);
+                }
             }
         }
-        res.json({ success: true, message: 'Order fulfilled (test mode)' });
+
+        res.json({ success: true, message: 'Order verified and fulfilled securely.' });
     } catch (error) {
-        console.error('Test Fulfillment Error:', error);
+        console.error('Verify Payment Error:', error);
         res.status(500).json({ error: error.message });
     }
 });
