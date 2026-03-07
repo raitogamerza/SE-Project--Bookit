@@ -18,7 +18,7 @@ const PaymentSuccess = () => {
                 hasFulfilled.current = true; // Set flag immediately to prevent double calls
                 try {
                     // Secure verification via backend calling Stripe API
-                    await fetch('http://localhost:5000/api/verify-payment', {
+                    await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/verify-payment`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ paymentIntentId: paymentIntent })

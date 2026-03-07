@@ -100,7 +100,7 @@ const AddBook = () => {
             const token = session?.access_token;
 
             // Call the Node.js Express backend
-            const response = await fetch('http://localhost:5000/api/books', {
+            const response = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/books`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

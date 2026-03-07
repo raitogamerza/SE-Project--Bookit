@@ -91,7 +91,7 @@ app.post('/api/create-payment-intent', async (req, res) => {
         const paymentIntent = await stripe.paymentIntents.create({
             amount: amount,
             currency: 'thb',
-            payment_method_types: ['card', 'promptpay'],
+            automatic_payment_methods: { enabled: true },
             metadata: {
                 userId: userId,
                 bookIds: JSON.stringify(bookIds)

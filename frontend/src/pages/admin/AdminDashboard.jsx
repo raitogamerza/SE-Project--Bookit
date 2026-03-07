@@ -18,14 +18,14 @@ const AdminDashboard = () => {
         setLoading(true)
         try {
             // 1. Fetch Stats
-            const statsRes = await fetch('http://localhost:5000/api/admin/dashboard');
+            const statsRes = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/admin/dashboard`);
             if (statsRes.ok) {
                 const statsData = await statsRes.json();
                 setStats(statsData);
             }
 
             // 2. Fetch all withdrawals with seller info
-            const withRes = await fetch('http://localhost:5000/api/admin/withdrawals');
+            const withRes = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/admin/withdrawals`);
             if (withRes.ok) {
                 const withdrawalList = await withRes.json();
                 setWithdrawals(withdrawalList);
@@ -41,7 +41,7 @@ const AdminDashboard = () => {
         if (!confirm(`Are you sure you want to mark this request as ${newStatus.toUpperCase()}?`)) return;
 
         try {
-            const res = await fetch(`http://localhost:5000/api/admin/withdrawals/${id}`, {
+            const res = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/admin/withdrawals/${id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ status: newStatus })

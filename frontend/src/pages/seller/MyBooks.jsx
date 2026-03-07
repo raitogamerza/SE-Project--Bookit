@@ -38,7 +38,7 @@ const MyBooks = () => {
             try {
                 const { data: { session } } = await supabase.auth.getSession();
 
-                const response = await fetch(`http://localhost:5000/api/books/${id}`, {
+                const response = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/books/${id}`, {
                     method: 'DELETE',
                     headers: {
                         'Authorization': session ? `Bearer ${session.access_token}` : ''

@@ -34,7 +34,7 @@ const Withdrawals = () => {
             if (!token) throw new Error("No access token available");
 
             // Fetch balance
-            const balanceRes = await fetch('http://localhost:5000/api/seller/balance', {
+            const balanceRes = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/seller/balance`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             if (balanceRes.ok) {
@@ -43,7 +43,7 @@ const Withdrawals = () => {
             }
 
             // Fetch history
-            const historyRes = await fetch('http://localhost:5000/api/seller/withdrawals', {
+            const historyRes = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/seller/withdrawals`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             if (historyRes.ok) {
@@ -79,7 +79,7 @@ const Withdrawals = () => {
             const { data: { session } } = await supabase.auth.getSession();
             const token = session?.access_token;
 
-            const res = await fetch('http://localhost:5000/api/seller/withdraw', {
+            const res = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/seller/withdraw`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

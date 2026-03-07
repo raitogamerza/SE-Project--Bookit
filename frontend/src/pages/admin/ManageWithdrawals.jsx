@@ -12,7 +12,7 @@ const ManageWithdrawals = () => {
     const fetchWithdrawals = async () => {
         setLoading(true)
         try {
-            const res = await fetch('http://localhost:5000/api/admin/withdrawals')
+            const res = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/admin/withdrawals`)
             if (res.ok) {
                 const data = await res.json()
                 setWithdrawals(data)
@@ -27,7 +27,7 @@ const ManageWithdrawals = () => {
     const handleUpdateStatus = async (id, status) => {
         if (!window.confirm(`Are you sure you want to mark this request as ${status}?`)) return
         try {
-            const res = await fetch(`http://localhost:5000/api/admin/withdrawals/${id}`, {
+            const res = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/admin/withdrawals/${id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ status })

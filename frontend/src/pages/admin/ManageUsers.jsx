@@ -13,7 +13,7 @@ const ManageUsers = () => {
     const fetchUsers = async () => {
         setLoading(true)
         try {
-            const response = await fetch('http://localhost:5000/api/admin/users')
+            const response = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/admin/users`)
             if (!response.ok) throw new Error('Failed to fetch users')
             const data = await response.json()
             setUsers(data)
@@ -28,7 +28,7 @@ const ManageUsers = () => {
         if (!window.confirm('Are you sure you want to delete this user? This action cannot be undone.')) return;
 
         try {
-            const response = await fetch(`http://localhost:5000/api/admin/users/${id}`, {
+            const response = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/admin/users/${id}`, {
                 method: 'DELETE'
             })
             if (!response.ok) throw new Error('Failed to delete user')
@@ -46,7 +46,7 @@ const ManageUsers = () => {
         if (!window.confirm(`Are you sure you want to ${action} this user?`)) return;
 
         try {
-            const response = await fetch(`http://localhost:5000/api/admin/users/${id}/ban`, {
+            const response = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/admin/users/${id}/ban`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ banned: !currentlyBanned })
