@@ -15,17 +15,28 @@ const Home = () => {
     useEffect(() => {
         const fetchHomeBooks = async () => {
             try {
-                // Fetch top 8 newest books
+                // Fetch top 4 newest books for Arrivals
                 const { data, error } = await supabase
                     .from('books')
                     .select('*')
                     .order('created_at', { ascending: false })
-                    .limit(8)
+                    .limit(4)
 
                 if (error) throw error
 
-                // Process books
-                const processedBooks = data.map((book, index) => {
+                // Fetch popular books from API
+                let popData = [];
+                try {
+                    const popRes = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/books/popular`);
+                    if (popRes.ok) {
+                        popData = await popRes.json();
+                    }
+                } catch (e) {
+                    console.error("Failed to fetch popular books", e);
+                }
+
+                // Helper to process book data
+                const processBook = (book) => {
                     const createdAt = new Date(book.created_at)
                     const now = new Date()
                     const diffTime = Math.abs(now - createdAt)
@@ -42,11 +53,10 @@ const Home = () => {
                         category: book.genre,
                         cover: book.cover_url || 'https://images.unsplash.com/photo-1544947950-fa07a98d237f?auto=format&fit=crop&q=80&w=800'
                     }
-                })
+                }
 
-                // Split into New Arrivals (first 4) and Popular (next 4)
-                setNewArrivals(processedBooks.slice(0, 4))
-                setPopularBooks(processedBooks.slice(4, 8))
+                setNewArrivals((data || []).map(processBook))
+                setPopularBooks((popData || []).map(processBook).slice(0, 4))
             } catch (error) {
                 console.error('Error fetching home books:', error)
             } finally {

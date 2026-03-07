@@ -3,6 +3,9 @@ import { useParams, Link } from 'react-router-dom'
 import { Star, ShoppingCart, Heart, Share2, BookOpen, AlertCircle } from 'lucide-react'
 import { useCart } from '../../context/CartContext'
 import { supabase } from '../../services/supabase'
+import { pdfjs } from 'react-pdf'
+
+pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
 const BookDetail = () => {
     const { id } = useParams()
@@ -10,6 +13,8 @@ const BookDetail = () => {
     const [book, setBook] = useState(null)
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState(null)
+    const [actualPages, setActualPages] = useState(null) // dynamically loaded
+    const [isBestSeller, setIsBestSeller] = useState(false)
 
     useEffect(() => {
         const fetchBookDetail = async () => {
@@ -32,12 +37,35 @@ const BookDetail = () => {
                     cover: data.cover_url || 'https://images.unsplash.com/photo-1544947950-fa07a98d237f?auto=format&fit=crop&q=80&w=800',
                     description: data.description || 'No description provided.',
                     genres: [data.genre], // Wrapping single genre in array for map
-                    pages: Math.floor(Math.random() * (500 - 150) + 150), // Mock pages
                     language: 'English', // Mock 
                     publisher: 'Independent', // Mock
                     demoFileUrl: data.demo_file_url,
+                    fileUrl: data.file_url,
                     qrCodeUrl: data.qr_code_url
                 });
+
+                // Fetch actual pages from PDF
+                const pdfUrlToMeasure = data.file_url || data.demo_file_url;
+                if (pdfUrlToMeasure) {
+                    try {
+                        const pdfDoc = await pdfjs.getDocument(pdfUrlToMeasure).promise;
+                        setActualPages(pdfDoc.numPages);
+                    } catch (pdfErr) {
+                        console.error("Failed to load PDF pages", pdfErr);
+                        setActualPages(0);
+                    }
+                }
+
+                // Check Best Seller Status
+                try {
+                    const statsRes = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/books/${id}/best-seller-status`);
+                    const statsData = await statsRes.json();
+                    if (statsRes.ok && statsData.isBestSeller) {
+                        setIsBestSeller(true);
+                    }
+                } catch (statsErr) {
+                    console.error("Failed to fetch best seller status", statsErr);
+                }
 
             } catch (err) {
                 console.error("Error fetching book details:", err);
@@ -89,9 +117,11 @@ const BookDetail = () => {
                 {/* Info */}
                 <div className="md:col-span-2 space-y-8">
                     <div>
-                        <div className="flex items-center gap-2 mb-2">
-                            <span className="px-3 py-1 bg-orange-100 text-orange-600 rounded-full text-xs font-bold uppercase tracking-wider">Best Seller</span>
-                        </div>
+                        {isBestSeller && (
+                            <div className="flex items-center gap-2 mb-2">
+                                <span className="px-3 py-1 bg-orange-100 text-orange-600 rounded-full text-xs font-bold uppercase tracking-wider">Best Seller</span>
+                            </div>
+                        )}
                         <h1 className="text-4xl md:text-5xl font-bold mb-2 text-[var(--color-text-main)] font-serif">{book.title}</h1>
                         <p className="text-xl text-[var(--color-text-light)] font-medium">by <span className="text-[var(--color-primary)] underline decoration-dotted">{book.author}</span></p>
                     </div>
@@ -103,7 +133,7 @@ const BookDetail = () => {
                         </div>
                         <div className="flex items-center gap-2 text-[var(--color-text-light)]">
                             <BookOpen className="w-5 h-5" />
-                            <span>{book.pages} Pages</span>
+                            <span>{actualPages === null ? "..." : (actualPages || "N/A")} Pages</span>
                         </div>
                         <div className="text-[var(--color-text-light)] px-3 py-1 bg-[var(--color-secondary)]/10 rounded-lg">
                             {book.language}

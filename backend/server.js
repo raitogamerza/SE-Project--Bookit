@@ -233,6 +233,103 @@ app.post('/api/verify-payment', async (req, res) => {
     }
 });
 
+// Route for fetching popular books (Best Sellers)
+app.get('/api/books/popular', async (req, res) => {
+    try {
+        const supabaseAdmin = createClient(supabaseUrl, process.env.SUPABASE_SERVICE_ROLE_KEY || supabaseKey);
+
+        // 1. Get total users
+        const { count: totalUsers, error: usersError } = await supabaseAdmin
+            .from('users')
+            .select('*', { count: 'exact', head: true });
+
+        if (usersError) throw usersError;
+
+        // 2. Get all completed orders
+        const { data: orders, error: ordersError } = await supabaseAdmin
+            .from('orders')
+            .select('book_id, user_id')
+            .eq('status', 'completed');
+
+        if (ordersError) throw ordersError;
+
+        // 3. Count unique buyers per book
+        const buyersPerBook = {};
+        orders.forEach(o => {
+            if (!buyersPerBook[o.book_id]) buyersPerBook[o.book_id] = new Set();
+            buyersPerBook[o.book_id].add(o.user_id);
+        });
+
+        // 4. Find book IDs that meet the Best Seller criteria
+        const popularBookIds = [];
+        for (const [bookId, buyersSet] of Object.entries(buyersPerBook)) {
+            if (totalUsers > 0 && buyersSet.size > (totalUsers / 2)) {
+                popularBookIds.push(bookId);
+            }
+        }
+
+        if (popularBookIds.length === 0) {
+            return res.json([]);
+        }
+
+        // 5. Fetch book details for popular books
+        const { data: popularBooks, error: popError } = await supabaseAdmin
+            .from('books')
+            .select('*')
+            .in('id', popularBookIds)
+            .order('created_at', { ascending: false })
+            .limit(8);
+
+        if (popError) throw popError;
+
+        res.json(popularBooks);
+
+    } catch (error) {
+        console.error('Popular Books Fetch Error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Route for checking Best Seller status
+app.get('/api/books/:id/best-seller-status', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const supabaseAdmin = createClient(supabaseUrl, process.env.SUPABASE_SERVICE_ROLE_KEY || supabaseKey);
+
+        // 1. Get total number of active users in the system
+        const { count: totalUsers, error: usersError } = await supabaseAdmin
+            .from('users')
+            .select('*', { count: 'exact', head: true });
+
+        if (usersError) throw usersError;
+
+        // 2. Get unique buyers for this book
+        const { data: orders, error: ordersError } = await supabaseAdmin
+            .from('orders')
+            .select('user_id')
+            .eq('book_id', id)
+            .eq('status', 'completed');
+
+        if (ordersError) throw ordersError;
+
+        const uniqueBuyers = new Set(orders.map(o => o.user_id)).size;
+
+        // Is Best Seller if more than half of the users bought it
+        // totalUsers > 0 is necessary to avoid 0/0 and granting best seller to everything when empty
+        const isBestSeller = totalUsers > 0 && uniqueBuyers > (totalUsers / 2);
+
+        res.json({
+            isBestSeller,
+            uniqueBuyers,
+            totalUsers
+        });
+
+    } catch (error) {
+        console.error('Best Seller Status Error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // Route for Seller Dashboard Analytics
 app.get('/api/seller/dashboard/:sellerId', async (req, res) => {
     try {
