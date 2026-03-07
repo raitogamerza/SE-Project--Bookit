@@ -8,7 +8,7 @@ import { useAuth } from '../../context/AuthContext'
 
 // Initialize Stripe with the publishable key (Test Mode)
 // ⚠️ WARNING: Never expose the secret key on the frontend!
-const stripePromise = loadStripe('pk_test_51SxRCmIEEB60k7bce5oxRNCIxaLhbuI81Cwy1zsrq4ED9WsiQedKMzwGMJeTsjzMH75aUxHGbrS8hnLmmH5n283S007RBzS2ld')
+const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || 'pk_test_51SxRCmIEEB60k7bce5oxRNCIxaLhbuI81Cwy1zsrq4ED9WsiQedKMzwGMJeTsjzMH75aUxHGbrS8hnLmmH5n283S007RBzS2ld')
 
 const CheckoutForm = ({ clientSecret, totalAmount, cart }) => {
     const stripe = useStripe()
