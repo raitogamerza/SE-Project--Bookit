@@ -92,6 +92,11 @@ const Navbar = () => {
 
                         {user ? (
                             <div className="flex items-center gap-4">
+                                {user.user_metadata?.role === 'admin' && (
+                                    <Link to="/admin/dashboard" className="px-3 py-1.5 bg-purple-500/10 text-purple-600 rounded-full font-bold text-sm hover:bg-purple-500/20 transition-colors border border-purple-500/20 shadow-sm hidden lg:block">
+                                        Admin Panel
+                                    </Link>
+                                )}
                                 <Link to="/profile" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
                                     <div className="w-8 h-8 rounded-full bg-[var(--color-primary)]/10 flex items-center justify-center overflow-hidden border border-[var(--color-primary)]/20">
                                         {user.user_metadata?.avatar_url ? (
@@ -169,6 +174,11 @@ const Navbar = () => {
                                     <div className="py-3 px-4 text-[var(--color-primary)] font-bold">
                                         Hi, {user.email.split('@')[0]}
                                     </div>
+                                    {user.user_metadata?.role === 'admin' && (
+                                        <Link to="/admin/dashboard" onClick={() => setIsMenuOpen(false)} className="block py-3 px-4 mb-2 bg-purple-50 text-purple-600 rounded-xl font-bold hover:bg-purple-100 transition-colors">
+                                            Go to Admin Panel
+                                        </Link>
+                                    )}
                                     <button
                                         onClick={handleLogout}
                                         className="block w-full text-center py-3 bg-red-50 text-red-500 rounded-xl font-bold hover:bg-red-100 transition-colors"

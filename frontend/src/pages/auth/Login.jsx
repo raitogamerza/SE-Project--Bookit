@@ -16,27 +16,19 @@ const Login = () => {
         setError('')
         setLoading(true)
 
-        // Check for Admin Credentials
-        if (email === 'admin@bookit.com' && password === 'admin123') {
-            localStorage.setItem('admin_token', 'mock_admin_token')
-            setLoading(false)
-            navigate('/admin/dashboard')
-            return
-        }
+        // Remove mock admin check since we use real Supabase auth now
 
         try {
             const { user } = await login(email, password)
 
+            // Check if user is a admin
+            if (user?.user_metadata?.role === 'admin') {
+                navigate('/admin/dashboard')
+                return
+            }
+
             // Check if user is a seller trying to login to user portal
             if (user?.user_metadata?.role === 'seller') {
-                // We need to import logout but it's not destructured from useAuth, let's assume we can use the one from context if we destructure it
-                // Actually Login component doesn't destructure logout. 
-                // Let's modify the destructuring above first or assume we can just throw error and let the auth state listener handle it? 
-                // No, if login succeeded, the auth state changed. We must force logout.
-                // I will add logout to destructuring in the next step or just do it here if I change the component.
-                // Wait, I can't easily logout here without destructuring it.
-                // I'll throw an error and since the AuthContext listens to state changes, it might still set the user. 
-                // I should destructure logout.
                 throw new Error("This account is a Seller account. Please use the Seller Login.")
             }
 
