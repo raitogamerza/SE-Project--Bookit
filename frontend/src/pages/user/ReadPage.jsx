@@ -31,6 +31,7 @@ const ReadPage = () => {
     useEffect(() => {
         if (!isPdfLoading && numPages) {
             localStorage.setItem(`bookit-progress-${user?.id || 'guest'}-${id}`, pageNumber.toString());
+            localStorage.setItem(`bookit-totalpages-${user?.id || 'guest'}-${id}`, numPages.toString());
         }
     }, [pageNumber, id, user, isPdfLoading, numPages]);
 

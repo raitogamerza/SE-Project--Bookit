@@ -53,13 +53,26 @@ const MyLibrary = () => {
                         if (diffDays === 1) lastReadStr = 'Yesterday'
                         else if (diffDays > 1) lastReadStr = `${diffDays} days ago`
 
+                        // Retrieve progress from localStorage
+                        const savedPage = localStorage.getItem(`bookit-progress-${user.id}-${book.id}`);
+                        const savedTotalStr = localStorage.getItem(`bookit-totalpages-${user.id}-${book.id}`);
+
+                        let progress = 0;
+                        if (savedPage && savedTotalStr) {
+                            const p = parseInt(savedPage, 10);
+                            const t = parseInt(savedTotalStr, 10);
+                            if (t > 0) {
+                                progress = p / t;
+                            }
+                        }
+
                         return {
                             id: book.id,
                             title: book.title,
                             author: book.author,
                             cover: book.cover_url || 'https://images.unsplash.com/photo-1544947950-fa07a98d237f?auto=format&fit=crop&q=80&w=800',
-                            progress: 0, // Mock progress, could be added to DB later
-                            lastRead: lastReadStr
+                            progress: progress,
+                            lastRead: savedPage ? 'Currently Reading' : lastReadStr
                         }
                     })
 
