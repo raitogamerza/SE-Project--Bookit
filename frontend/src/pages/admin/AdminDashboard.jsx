@@ -8,6 +8,7 @@ const AdminDashboard = () => {
     const { user } = useAuth()
     const [stats, setStats] = useState({ users: 0, revenue: 0, sellers: 0, pending: 0 })
     const [withdrawals, setWithdrawals] = useState([])
+    const [searchQuery, setSearchQuery] = useState('')
     const [loading, setLoading] = useState(true)
 
     useEffect(() => {
@@ -97,7 +98,13 @@ const AdminDashboard = () => {
                         <h2 className="text-lg font-bold text-[var(--color-text-main)]">Seller Withdrawal Requests</h2>
                         <div className="relative">
                             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-light)]" />
-                            <input type="text" placeholder="Search sellers..." className="pl-9 pr-4 py-2 border border-[var(--color-secondary)]/20 rounded-lg text-sm bg-[var(--color-background)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]" />
+                            <input 
+                                type="text" 
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                placeholder="Search sellers..." 
+                                className="pl-9 pr-4 py-2 border border-[var(--color-secondary)]/20 rounded-lg text-sm bg-[var(--color-background)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]" 
+                            />
                         </div>
                     </div>
 
@@ -114,12 +121,28 @@ const AdminDashboard = () => {
                             </thead>
                             <tbody className="divide-y divide-[var(--color-secondary)]/5">
                                 {loading ? (
-                                    <tr><td colSpan="5" className="p-8 text-center text-gray-500">Loading requests...</td></tr>
+                                    <tr><td colSpan="5" className="p-8 text-center text-[var(--color-text-light)]">Loading requests...</td></tr>
                                 ) : withdrawals.length === 0 ? (
-                                    <tr><td colSpan="5" className="p-8 text-center text-gray-500">No withdrawal requests found.</td></tr>
-                                ) : withdrawals.map((w) => (
-                                    <tr key={w.id} className="hover:bg-[var(--color-background)]/50 transition-colors">
-                                        <td className="p-4 text-sm text-[var(--color-text-light)]">
+                                    <tr><td colSpan="5" className="p-8 text-center text-[var(--color-text-light)]">No withdrawal requests found.</td></tr>
+                                ) : (
+                                    withdrawals.filter(w => {
+                                        const term = searchQuery.toLowerCase();
+                                        return (
+                                            w.seller?.full_name?.toLowerCase().includes(term) ||
+                                            w.seller?.email?.toLowerCase().includes(term)
+                                        );
+                                    }).length === 0 ? (
+                                        <tr><td colSpan="5" className="p-8 text-center text-[var(--color-text-light)]">No sellers match your search.</td></tr>
+                                    ) : (
+                                        withdrawals.filter(w => {
+                                            const term = searchQuery.toLowerCase();
+                                            return (
+                                                w.seller?.full_name?.toLowerCase().includes(term) ||
+                                                w.seller?.email?.toLowerCase().includes(term)
+                                            );
+                                        }).map((w) => (
+                                            <tr key={w.id} className="hover:bg-[var(--color-background)]/50 transition-colors">
+                                                <td className="p-4 text-sm text-[var(--color-text-light)]">
                                             {new Date(w.created_at).toLocaleDateString()}
                                         </td>
                                         <td className="p-4">
@@ -151,11 +174,11 @@ const AdminDashboard = () => {
                                                     </button>
                                                 </div>
                                             ) : (
-                                                <span className="text-xs text-gray-400">Processed</span>
+                                                <span className="text-xs text-[var(--color-text-light)]">Processed</span>
                                             )}
                                         </td>
                                     </tr>
-                                ))}
+                                ))))}
                             </tbody>
                         </table>
                     </div>
