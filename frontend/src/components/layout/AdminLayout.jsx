@@ -45,10 +45,7 @@ const AdminLayout = () => {
                     <Link to="/admin/withdrawals" className={navLinkClass('/admin/withdrawals')}>
                         <ShoppingBag className="w-5 h-5" /> Withdrawals
                     </Link>
-                    <Link to="#" className={navLinkClass('/admin/orders')}>
-                        <ShoppingBag className="w-5 h-5" /> Orders
-                    </Link>
-                    <Link to="#" className={navLinkClass('/admin/settings')}>
+                    <Link to="/admin/settings" className={navLinkClass('/admin/settings')}>
                         <Settings className="w-5 h-5" /> Settings
                     </Link>
                 </nav>

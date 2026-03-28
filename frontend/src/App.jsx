@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { Routes, Route, Outlet } from 'react-router-dom'
 import Layout from './components/layout/Layout'
 import SellerLayout from './components/layout/SellerLayout'
@@ -32,8 +33,17 @@ import AdminDashboard from './pages/admin/AdminDashboard'
 import ManageUsers from './pages/admin/ManageUsers'
 import ManageBooks from './pages/admin/ManageBooks'
 import ManageWithdrawals from './pages/admin/ManageWithdrawals'
+import AdminSettings, { applyGlobalTheme, getAvailableThemes } from './pages/admin/AdminSettings'
 
 function App() {
+  useEffect(() => {
+    const savedThemeName = localStorage.getItem('bookit_admin_theme')
+    if (savedThemeName) {
+      const foundTheme = getAvailableThemes().find(t => t.name === savedThemeName)
+      if (foundTheme) applyGlobalTheme(foundTheme)
+    }
+  }, [])
+
   return (
     <AuthProvider>
       <CartProvider>
@@ -67,6 +77,7 @@ function App() {
             <Route path="books" element={<ManageBooks />} />
             <Route path="edit-book/:id" element={<EditBook />} />
             <Route path="withdrawals" element={<ManageWithdrawals />} />
+            <Route path="settings" element={<AdminSettings />} />
           </Route>
 
           {/* User/Public Routes - Main Site (Navbar + Footer) */}
