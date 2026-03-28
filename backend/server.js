@@ -2,7 +2,11 @@ const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
 const { createClient } = require('@supabase/supabase-js');
-const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+const stripeSecretKey = process.env.STRIPE_SECRET_KEY || 'sk_test_placeholder';
+const stripe = require('stripe')(stripeSecretKey);
+if (stripeSecretKey === 'sk_test_placeholder') {
+    console.warn("WARNING: STRIPE_SECRET_KEY is missing. Mock placeholder initialized to prevent crash.");
+}
 
 const app = express();
 const port = process.env.PORT || 5000;

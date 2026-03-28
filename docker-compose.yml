@@ -8,11 +8,10 @@ services:
     container_name: bookit_backend
     ports:
       - "5000:5000"
+    env_file:
+      - ./backend/.env
     environment:
       - NODE_ENV=production
-      # Note: Make sure to map necessary env variables here if running in production
-      # - SUPABASE_URL=${SUPABASE_URL}
-      # - SUPABASE_KEY=${SUPABASE_KEY}
     restart: unless-stopped
 
   frontend:
