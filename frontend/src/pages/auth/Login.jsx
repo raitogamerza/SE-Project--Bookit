@@ -8,7 +8,7 @@ const Login = () => {
     const [password, setPassword] = useState('')
     const [error, setError] = useState('')
     const [loading, setLoading] = useState(false)
-    const { login } = useAuth()
+    const { login, logout } = useAuth()
     const navigate = useNavigate()
 
     const handleSubmit = async (e) => {
@@ -29,6 +29,7 @@ const Login = () => {
 
             // Check if user is a seller trying to login to user portal
             if (user?.user_metadata?.role === 'seller') {
+                await logout()
                 throw new Error("This account is a Seller account. Please use the Seller Login.")
             }
 
