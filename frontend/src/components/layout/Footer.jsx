@@ -39,9 +39,9 @@ const Footer = () => {
                             <input
                                 type="email"
                                 placeholder="Email address"
-                                className="flex-1 px-4 py-2 rounded-lg border border-[var(--color-secondary)] bg-[var(--color-surface)] focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]"
+                                className="flex-1 min-w-0 px-4 py-2 rounded-lg border border-[var(--color-secondary)] bg-[var(--color-surface)] focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)]"
                             />
-                            <button className="px-4 py-2 bg-[var(--color-primary)] text-[var(--color-text-inverse)] rounded-lg hover:bg-[var(--color-primary-dark)] transition-colors">
+                            <button className="shrink-0 px-4 py-2 bg-[var(--color-primary)] text-[var(--color-text-inverse)] rounded-lg hover:bg-[var(--color-primary-dark)] transition-colors">
                                 Join
                             </button>
                         </div>

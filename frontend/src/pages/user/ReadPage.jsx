@@ -229,7 +229,7 @@ const ReadPage = () => {
                             <Page
                                 pageNumber={pageNumber}
                                 scale={scale}
-                                loading={<div className="h-[800px] w-[600px] bg-[var(--color-surface)] animate-pulse flex items-center justify-center text-[var(--color-text-light)]">Loading page...</div>}
+                                loading={<div className="h-[60vh] md:h-[800px] w-full max-w-[600px] bg-[var(--color-surface)] animate-pulse flex items-center justify-center text-[var(--color-text-light)]">Loading page...</div>}
                                 renderTextLayer={true}
                                 renderAnnotationLayer={true}
                                 className="bg-[var(--color-surface)]"

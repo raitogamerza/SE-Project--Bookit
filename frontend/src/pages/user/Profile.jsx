@@ -120,36 +120,36 @@ const Profile = () => {
                     className="w-full h-full object-cover"
                 />
 
-                <div className="absolute bottom-0 left-0 w-full p-8 z-20 container mx-auto flex items-end gap-6">
+                <div className="absolute bottom-0 left-0 w-full p-4 md:p-8 z-20 container mx-auto flex flex-col md:flex-row items-center md:items-end gap-4 md:gap-6">
                     {/* Avatar */}
                     <div className="relative shrink-0">
-                        <div className="w-44 h-44 rounded-full border-4 border-[var(--color-background)] bg-[var(--color-surface)] shadow-2xl overflow-hidden relative z-10 group-avatar">
+                        <div className="w-32 h-32 md:w-44 md:h-44 rounded-full border-4 border-[var(--color-background)] bg-[var(--color-surface)] shadow-2xl overflow-hidden relative z-10 group-avatar">
                             {avatarUrl ? (
                                 <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover transition-transform duration-500 group-avatar-hover:scale-110" />
                             ) : (
                                 <div className="w-full h-full bg-[var(--color-secondary)]/20 flex items-center justify-center text-[var(--color-primary)]">
-                                    <User className="w-20 h-20" />
+                                    <User className="w-16 h-16 md:w-20 md:h-20" />
                                 </div>
                             )}
                         </div>
                         <button
                             onClick={() => setActiveTab('settings')}
-                            className="absolute bottom-4 right-2 z-20 p-2.5 bg-[var(--color-surface)] text-[var(--color-primary-dark)] rounded-full shadow-lg hover:bg-[var(--color-primary)] hover:text-[var(--color-text-inverse)] transition-all duration-300 transform hover:scale-110 hover:rotate-12 border-2 border-[var(--color-primary)]/10"
+                            className="absolute bottom-2 md:bottom-4 right-2 z-20 p-2 md:p-2.5 bg-[var(--color-surface)] text-[var(--color-primary-dark)] rounded-full shadow-lg hover:bg-[var(--color-primary)] hover:text-[var(--color-text-inverse)] transition-all duration-300 transform hover:scale-110 hover:rotate-12 border-2 border-[var(--color-primary)]/10"
                             title="Update Avatar"
                         >
-                            <Camera className="w-5 h-5" />
+                            <Camera className="w-4 h-4 md:w-5 md:h-5" />
                         </button>
                     </div>
 
-                    <div className="mb-4 text-[var(--color-text-inverse)] flex-1 drop-shadow-lg">
-                        <div className="flex items-center gap-3 mb-1">
-                            <h1 className="text-4xl md:text-5xl font-black tracking-tight">{fullName || 'Reader'}</h1>
-                            <span className="px-3 py-1 bg-[var(--color-primary)] text-[var(--color-text-inverse)] text-xs font-bold rounded-full uppercase tracking-wider shadow-sm">
+                    <div className="mb-2 md:mb-4 text-[var(--color-text-inverse)] flex-1 drop-shadow-lg text-center md:text-left min-w-0 w-full">
+                        <div className="flex flex-col md:flex-row items-center gap-2 md:gap-3 mb-1">
+                            <h1 className="text-3xl md:text-5xl font-black tracking-tight truncate w-full md:w-auto">{fullName || 'Reader'}</h1>
+                            <span className="px-3 py-1 bg-[var(--color-primary)] text-[var(--color-text-inverse)] text-[10px] md:text-xs font-bold rounded-full uppercase tracking-wider shadow-sm whitespace-nowrap">
                                 Level 5
                             </span>
                         </div>
-                        <p className="text-lg opacity-90 font-medium flex items-center gap-2">
-                            <Mail className="w-4 h-4" /> {user?.email}
+                        <p className="text-sm md:text-lg opacity-90 font-medium flex items-center justify-center md:justify-start gap-2 truncate">
+                            <Mail className="w-4 h-4 shrink-0" /> <span className="truncate">{user?.email}</span>
                         </p>
                     </div>
                 </div>
@@ -229,7 +229,7 @@ const Profile = () => {
                                                             className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                                                         />
                                                     </div>
-                                                    <div className="flex-1 py-1">
+                                                    <div className="flex-1 py-1 min-w-0">
                                                         <h3 className="font-bold text-[var(--color-text-main)] text-lg mb-1 line-clamp-1">{book.title}</h3>
                                                         <p className="text-sm text-[var(--color-text-light)] mb-4">by {book.author}</p>
 

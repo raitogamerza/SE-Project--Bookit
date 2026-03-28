@@ -58,7 +58,7 @@ const CartDrawer = () => {
                                 cart.map((item, index) => (
                                     <div key={`${item.id}-${index}`} className="flex gap-4 p-3 bg-[var(--color-background)] rounded-xl border border-[var(--color-secondary)]/10">
                                         <img src={item.cover} alt={item.title} className="w-16 h-24 object-cover rounded-md" />
-                                        <div className="flex-1 flex flex-col justify-between">
+                                        <div className="flex-1 flex flex-col justify-between min-w-0">
                                             <div>
                                                 <h3 className="font-bold text-[var(--color-text-main)] line-clamp-1">{item.title}</h3>
                                                 <p className="text-sm text-[var(--color-text-light)]">{item.author}</p>

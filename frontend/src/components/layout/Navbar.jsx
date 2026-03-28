@@ -68,7 +68,7 @@ const Navbar = () => {
                     </div>
 
                     {/* Desktop Menu Icons */}
-                    <div className="hidden md:flex items-center gap-6">
+                    <div className="hidden lg:flex items-center gap-6">
                         <Link to="/" className="hover:text-[var(--color-primary)] transition-colors font-medium">Home</Link>
                         <Link to="/explore" className="hover:text-[var(--color-primary)] transition-colors font-medium">Explore</Link>
                         <Link to="/my-library" className="hover:text-[var(--color-primary)] transition-colors font-medium">My Library</Link>
@@ -130,14 +130,27 @@ const Navbar = () => {
                     </div>
 
                     {/* Mobile Menu Button  */}
-                    <button className="md:hidden p-2 ml-4 flex items-center justify-center text-[var(--color-text-main)] hover:bg-[var(--color-secondary)]/10 rounded-full transition-colors" onClick={() => setIsMenuOpen(!isMenuOpen)}>
-                        <Menu className="h-6 w-6" />
-                    </button>
+                    <div className="flex items-center gap-2 lg:hidden">
+                        <button
+                            onClick={() => setIsCartOpen(true)}
+                            className="relative p-2 hover:bg-[var(--color-secondary)]/20 rounded-full transition-colors"
+                        >
+                            <ShoppingCart className="h-6 w-6 text-[var(--color-text-main)]" />
+                            {cart.length > 0 && (
+                                <span className="absolute top-0 right-0 h-4 w-4 bg-red-500 text-[var(--color-text-inverse)] text-xs rounded-full flex items-center justify-center font-bold">
+                                    {cart.length}
+                                </span>
+                            )}
+                        </button>
+                        <button className="p-2 ml-2 flex items-center justify-center text-[var(--color-text-main)] hover:bg-[var(--color-secondary)]/10 rounded-full transition-colors" onClick={() => setIsMenuOpen(!isMenuOpen)}>
+                            <Menu className="h-6 w-6" />
+                        </button>
+                    </div>
                 </div>
 
                 {/* Mobile Dropdown Menu */}
                 {isMenuOpen && (
-                    <div className="md:hidden absolute top-16 left-0 w-full bg-[var(--color-background)] border-[var(--color-secondary)]/30 border-t border-b overflow-hidden shadow-xl">
+                    <div className="lg:hidden absolute top-16 left-0 w-full max-h-[calc(100vh-4rem)] overflow-y-auto bg-[var(--color-background)] border-[var(--color-secondary)]/30 border-t border-b shadow-xl">
                         <div className="flex flex-col p-4 space-y-2">
                             <div className="relative mb-4">
                                 <input
@@ -177,6 +190,9 @@ const Navbar = () => {
                                     <div className="py-3 px-4 text-[var(--color-primary)] font-bold">
                                         Hi, {user.email.split('@')[0]}
                                     </div>
+                                    <Link to="/profile" onClick={() => setIsMenuOpen(false)} className="block py-3 px-4 mb-2 bg-[var(--color-primary)]/10 text-[var(--color-primary)] rounded-xl font-bold hover:bg-[var(--color-primary)]/20 transition-colors">
+                                        My Profile
+                                    </Link>
                                     {user.user_metadata?.role === 'admin' && (
                                         <Link to="/admin/dashboard" onClick={() => setIsMenuOpen(false)} className="block py-3 px-4 mb-2 bg-purple-50 text-purple-600 rounded-xl font-bold hover:bg-purple-100 transition-colors">
                                             Go to Admin Panel

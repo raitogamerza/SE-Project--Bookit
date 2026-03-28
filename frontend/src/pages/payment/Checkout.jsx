@@ -162,7 +162,7 @@ const Checkout = () => {
                                                 <div className="w-full h-full flex justify-center items-center text-[var(--color-text-light)] text-xs">No Cover</div>
                                             )}
                                         </div>
-                                        <div className="flex-1">
+                                        <div className="flex-1 min-w-0">
                                             <h3 className="font-bold text-[var(--color-text-main)] text-sm line-clamp-2">{item.title}</h3>
                                             <p className="text-xs text-[var(--color-text-light)] mt-1">{item.author}</p>
                                             <div className="mt-2 text-sm font-bold text-[var(--color-primary-dark)]">฿{item.price.toFixed(2)}</div>
