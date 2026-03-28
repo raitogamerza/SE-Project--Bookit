@@ -1,16 +1,15 @@
 import { useState, useEffect } from 'react'
 import { ArrowRight, Star } from 'lucide-react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 
 import BookCard from '../../components/books/BookCard'
+import SearchDropdown from '../../components/search/SearchDropdown'
 import { supabase } from '../../services/supabase'
 
 const Home = () => {
     const [newArrivals, setNewArrivals] = useState([])
     const [popularBooks, setPopularBooks] = useState([])
     const [loading, setLoading] = useState(true)
-    const [searchTerm, setSearchTerm] = useState('')
-    const navigate = useNavigate()
 
     useEffect(() => {
         const fetchHomeBooks = async () => {
@@ -67,15 +66,6 @@ const Home = () => {
         fetchHomeBooks()
     }, [])
 
-    const handleSearch = (e) => {
-        e.preventDefault()
-        if (searchTerm.trim()) {
-            // Can pass search term via state or query params if needed
-            // For now, just navigate to explore
-            navigate('/explore')
-        }
-    }
-
     return (
         <div className="space-y-16 pb-12">
             {/* Hero Section */}
@@ -94,18 +84,9 @@ const Home = () => {
                     <p className="text-xl md:text-2xl mb-8 font-light text-gray-200">
                         An online bookstore with an anime style. Discover stories that are right for you.
                     </p>
-                    <form onSubmit={handleSearch} className="relative max-w-xl mx-auto">
-                        <input
-                            type="text"
-                            placeholder="Search books, authors..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full px-8 py-4 rounded-full text-[var(--color-text-main)] bg-[var(--color-background)] shadow-2xl focus:outline-none focus:ring-4 focus:ring-[var(--color-primary)]/50 transition-all font-medium"
-                        />
-                        <button type="submit" className="absolute right-2 top-2 bg-[var(--color-primary)] text-[var(--color-text-inverse)] px-6 py-2 rounded-full font-bold hover:bg-[var(--color-primary-dark)] transition-colors">
-                            Search
-                        </button>
-                    </form>
+                    <div className="relative max-w-xl mx-auto">
+                        <SearchDropdown variant="hero" placeholder="Search books, authors..." />
+                    </div>
                 </div>
             </section>
 

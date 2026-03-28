@@ -1,9 +1,10 @@
 import { Link, useNavigate } from 'react-router-dom'
-import { Search, ShoppingCart, User, Menu, LogOut, Moon, Sun } from 'lucide-react'
+import { ShoppingCart, Menu, LogOut, Moon, Sun } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { useCart } from '../../context/CartContext'
 import { useAuth } from '../../context/AuthContext'
 import CartDrawer from '../payment/CartDrawer'
+import SearchDropdown from '../search/SearchDropdown'
 
 const Navbar = () => {
     const [isMenuOpen, setIsMenuOpen] = useState(false)
@@ -58,13 +59,8 @@ const Navbar = () => {
                     </Link>
 
                     {/* Desktop Search */}
-                    <div className="hidden md:flex flex-1 max-w-md mx-8 relative">
-                        <input
-                            type="text"
-                            placeholder="Search books, authors..."
-                            className="w-full pl-10 pr-4 py-2 rounded-full border border-[var(--color-secondary)] bg-[var(--color-surface)]/50 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent transition-all"
-                        />
-                        <Search className="absolute left-3 top-2.5 h-5 w-5 text-[var(--color-text-light)]" />
+                    <div className="hidden md:flex flex-1 max-w-md mx-8">
+                        <SearchDropdown variant="navbar" />
                     </div>
 
                     {/* Desktop Menu Icons */}
@@ -152,13 +148,8 @@ const Navbar = () => {
                 {isMenuOpen && (
                     <div className="lg:hidden absolute top-16 left-0 w-full max-h-[calc(100vh-4rem)] overflow-y-auto bg-[var(--color-background)] border-[var(--color-secondary)]/30 border-t border-b shadow-xl">
                         <div className="flex flex-col p-4 space-y-2">
-                            <div className="relative mb-4">
-                                <input
-                                    type="text"
-                                    placeholder="Search..."
-                                    className="w-full pl-10 pr-4 py-3 rounded-xl border border-[var(--color-secondary)] bg-[var(--color-surface)]/50 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
-                                />
-                                <Search className="absolute left-3 top-3.5 h-5 w-5 text-[var(--color-text-light)]" />
+                            <div className="mb-4">
+                                <SearchDropdown variant="navbar" placeholder="Search..." onResultClick={() => setIsMenuOpen(false)} />
                             </div>
 
                             <Link to="/" onClick={() => setIsMenuOpen(false)} className="block py-3 px-4 rounded-xl font-medium text-[var(--color-text-main)] hover:bg-[var(--color-primary)]/10 hover:text-[var(--color-primary)] transition-colors">Home</Link>
