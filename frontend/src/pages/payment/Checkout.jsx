@@ -73,7 +73,7 @@ const CheckoutForm = ({ clientSecret, totalAmount, cart }) => {
 }
 
 const Checkout = () => {
-    const { cart } = useCart()
+    const { cart, setIsCartOpen } = useCart()
     const { user } = useAuth()
     const navigate = useNavigate()
     const [clientSecret, setClientSecret] = useState("")
@@ -88,7 +88,7 @@ const Checkout = () => {
         }
 
         if (cart.length === 0) {
-            navigate('/cart')
+            navigate('/explore')
             return
         }
 
@@ -137,10 +137,13 @@ const Checkout = () => {
     return (
         <div className="min-h-screen bg-[var(--color-background)] py-12 px-4 sm:px-6 lg:px-8">
             <div className="max-w-4xl mx-auto">
-                <Link to="/cart" className="inline-flex items-center text-[var(--color-text-light)] hover:text-[var(--color-primary)] mb-8 font-medium transition-colors">
+                <button 
+                    onClick={() => { navigate(-1); setIsCartOpen(true); }}
+                    className="inline-flex items-center text-[var(--color-text-light)] hover:text-[var(--color-primary)] mb-8 font-medium transition-colors"
+                >
                     <ArrowLeft className="w-4 h-4 mr-2" />
                     Back to cart
-                </Link>
+                </button>
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
                     {/* Left Side: Order Summary */}
@@ -194,9 +197,12 @@ const Checkout = () => {
                                     <AlertCircle className="w-10 h-10 mb-4 text-red-500" />
                                     <h3 className="font-bold mb-2">Checkout Error</h3>
                                     <p className="text-sm">{initError}</p>
-                                    <Link to="/cart" className="mt-6 px-6 py-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 transition">
+                                    <button 
+                                        onClick={() => { navigate('/explore'); setIsCartOpen(true); }} 
+                                        className="mt-6 px-6 py-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 transition"
+                                    >
                                         Return to Cart
-                                    </Link>
+                                    </button>
                                 </div>
                             ) : clientSecret ? (
                                 <Elements options={{ clientSecret, appearance }} stripe={stripePromise}>
