@@ -307,7 +307,7 @@ const AddBook = () => {
                                             required
                                         />
                                     </div>
-                                    <p className="text-xs text-[var(--color-text-light)] mt-2">You will earn 70% of each sale.</p>
+                                    <p className="text-xs text-[var(--color-text-light)] mt-2">You will earn 85% of each sale.</p>
                                 </div>
                             </div>
 

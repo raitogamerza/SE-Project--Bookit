@@ -1,5 +1,6 @@
+/* eslint-disable no-unused-vars */
 import { Link, useNavigate } from 'react-router-dom'
-import { User, Mail, Lock, Store, FileText, AlertCircle } from 'lucide-react'
+import { User, Mail, Lock, Store, FileText, AlertCircle, ArrowLeft } from 'lucide-react'
 import { useState } from 'react'
 import { useAuth } from '../../context/AuthContext'
 
@@ -33,7 +34,13 @@ const SellerRegister = () => {
     }
 
     return (
-        <div className="min-h-[calc(100vh-64px)] flex items-center justify-center p-4 bg-orange-50/30">
+        <div className="min-h-[calc(100vh-64px)] flex items-center justify-center p-4 bg-orange-50/30 relative">
+            {/* Back Arrow */}
+            <Link to="/" className="absolute top-6 left-6 flex items-center gap-2 text-[var(--color-text-light)] hover:text-[var(--color-primary)] transition-colors group z-10">
+                <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
+                <span className="font-medium text-sm">Back to Home</span>
+            </Link>
+
             <div className="bg-[var(--color-surface)] rounded-3xl shadow-xl w-full max-w-4xl overflow-hidden flex flex-col md:flex-row border border-[var(--color-secondary)]/20">
                 {/* Illustration Side */}
                 <div className="hidden md:block w-1/2 relative bg-orange-50">

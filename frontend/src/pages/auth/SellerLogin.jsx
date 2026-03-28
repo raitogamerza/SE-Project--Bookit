@@ -1,5 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom'
-import { Mail, Lock, AlertCircle, Store } from 'lucide-react'
+import { Mail, Lock, AlertCircle, Store, ArrowLeft } from 'lucide-react'
 import { useState } from 'react'
 import { useAuth } from '../../context/AuthContext'
 
@@ -32,7 +32,13 @@ const SellerLogin = () => {
     }
 
     return (
-        <div className="min-h-[calc(100vh-64px)] flex items-center justify-center p-4 bg-orange-50/30">
+        <div className="min-h-[calc(100vh-64px)] flex items-center justify-center p-4 bg-orange-50/30 relative">
+            {/* Back Arrow */}
+            <Link to="/" className="absolute top-6 left-6 flex items-center gap-2 text-[var(--color-text-light)] hover:text-[var(--color-primary)] transition-colors group z-10">
+                <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
+                <span className="font-medium text-sm">Back to Home</span>
+            </Link>
+
             <div className="bg-[var(--color-surface)] rounded-3xl shadow-xl w-full max-w-4xl overflow-hidden flex flex-col md:flex-row border border-[var(--color-secondary)]/20">
                 {/* Form Side */}
                 <div className="w-full md:w-1/2 p-8 md:p-12">

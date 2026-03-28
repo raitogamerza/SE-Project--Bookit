@@ -29,6 +29,7 @@ import AddBook from './pages/seller/AddBook'
 import EditBook from './pages/seller/EditBook'
 import MyBooks from './pages/seller/MyBooks'
 import Withdrawals from './pages/seller/Withdrawals'
+import SellerSettings from './pages/seller/SellerSettings'
 import AdminDashboard from './pages/admin/AdminDashboard'
 import ManageUsers from './pages/admin/ManageUsers'
 import ManageBooks from './pages/admin/ManageBooks'
@@ -59,7 +60,7 @@ function App() {
             <Route path="add-book" element={<AddBook />} />
             <Route path="edit-book/:id" element={<EditBook />} />
             <Route path="withdrawals" element={<Withdrawals />} />
-            {/* Future routes: orders, etc. */}
+            <Route path="settings" element={<SellerSettings />} />
           </Route>
 
           {/* Seller Auth Routes (Standalone - No Sidebar/User Navbar) */}
