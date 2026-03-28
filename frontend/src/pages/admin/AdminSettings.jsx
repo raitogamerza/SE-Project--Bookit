@@ -112,6 +112,7 @@ const themes = [
     }
 ]
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const applyGlobalTheme = (themeConfig) => {
     let styleEl = document.getElementById('dynamic-admin-theme');
     if (!styleEl) {
@@ -134,10 +135,19 @@ export const applyGlobalTheme = (themeConfig) => {
     Object.keys(themeConfig.light).forEach(k => root.style.removeProperty(k));
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const getAvailableThemes = () => themes;
 
 const AdminSettings = () => {
-    const [activeTheme, setActiveTheme] = useState('☕ Coffee (Default)')
+    const [activeTheme, setActiveTheme] = useState(() => {
+        if (typeof window !== 'undefined') {
+            const savedThemeName = localStorage.getItem('bookit_admin_theme')
+            if (savedThemeName && getAvailableThemes().find(t => t.name === savedThemeName)) {
+                return savedThemeName
+            }
+        }
+        return '☕ Coffee (Default)'
+    })
     const [saved, setSaved] = useState(false)
 
     useEffect(() => {
@@ -145,7 +155,6 @@ const AdminSettings = () => {
         if (savedThemeName) {
             const foundTheme = getAvailableThemes().find(t => t.name === savedThemeName)
             if (foundTheme) {
-                setActiveTheme(savedThemeName)
                 applyGlobalTheme(foundTheme)
             }
         }

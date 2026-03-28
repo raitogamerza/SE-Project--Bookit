@@ -10,18 +10,21 @@ const Navbar = () => {
     const { cart, setIsCartOpen } = useCart()
     const { user, logout } = useAuth()
     const navigate = useNavigate()
-    const [isDarkMode, setIsDarkMode] = useState(false)
+    const [isDarkMode, setIsDarkMode] = useState(() => {
+        if (typeof window !== 'undefined') {
+            return localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)
+        }
+        return false
+    })
 
     // Check system preference on load
     useEffect(() => {
-        if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-            setIsDarkMode(true)
+        if (isDarkMode) {
             document.documentElement.classList.add('dark')
         } else {
-            setIsDarkMode(false)
             document.documentElement.classList.remove('dark')
         }
-    }, [])
+    }, [isDarkMode])
 
     const toggleTheme = () => {
         if (isDarkMode) {

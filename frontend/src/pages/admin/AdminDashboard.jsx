@@ -2,10 +2,8 @@ import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { Users, DollarSign, Store, Clock, CheckCircle2, XCircle, Search } from 'lucide-react'
 import { supabase } from '../../services/supabase'
-import { useAuth } from '../../context/AuthContext'
 
 const AdminDashboard = () => {
-    const { user } = useAuth()
     const [stats, setStats] = useState({ users: 0, revenue: 0, sellers: 0, pending: 0 })
     const [withdrawals, setWithdrawals] = useState([])
     const [searchQuery, setSearchQuery] = useState('')

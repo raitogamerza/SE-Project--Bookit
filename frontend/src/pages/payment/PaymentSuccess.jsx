@@ -5,7 +5,7 @@ import { useAuth } from '../../context/AuthContext'
 import { CheckCircle2, BookOpen, AlertCircle, Loader2 } from 'lucide-react'
 
 const PaymentSuccess = () => {
-    const { cart, clearCart } = useCart()
+    const { clearCart } = useCart()
     const { user } = useAuth()
     const navigate = useNavigate()
     const [searchParams] = useSearchParams()

@@ -10,7 +10,7 @@ import { useAuth } from '../../context/AuthContext'
 // ⚠️ WARNING: Never expose the secret key on the frontend!
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || 'pk_test_51SxRCmIEEB60k7bce5oxRNCIxaLhbuI81Cwy1zsrq4ED9WsiQedKMzwGMJeTsjzMH75aUxHGbrS8hnLmmH5n283S007RBzS2ld')
 
-const CheckoutForm = ({ clientSecret, totalAmount, cart }) => {
+const CheckoutForm = ({ totalAmount, cart }) => {
     const stripe = useStripe()
     const elements = useElements()
     const [error, setError] = useState(null)
@@ -93,6 +93,7 @@ const Checkout = () => {
         }
 
         if (total < 10) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setInitError("Stripe requires a minimum total of ฿10.00 THB to process the payment. Please add more items to your cart.");
             return;
         }
@@ -120,7 +121,7 @@ const Checkout = () => {
         };
 
         fetchClientSecret();
-    }, [cart, user, navigate]);
+    }, [cart, user, navigate, total]);
 
     const appearance = {
         theme: 'stripe',

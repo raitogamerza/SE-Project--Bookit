@@ -1,3 +1,4 @@
+// eslint-disable-next-line no-unused-vars
 const StatCard = ({ title, value, icon: Icon, trend, color, trendUp = true }) => {
     return (
         <div className="bg-[var(--color-surface)] p-6 rounded-2xl shadow-sm border border-[var(--color-secondary)]/20 flex items-center justify-between">

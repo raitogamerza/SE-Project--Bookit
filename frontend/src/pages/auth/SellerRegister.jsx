@@ -8,7 +8,7 @@ const SellerRegister = () => {
     const [email, setEmail] = useState('')
     const [password, setPassword] = useState('')
     const [storeName, setStoreName] = useState('')
-    const [description, setDescription] = useState('')
+
     const [error, setError] = useState('')
     const [loading, setLoading] = useState(false)
     const { register } = useAuth() // Reusing the main auth register for now

@@ -3,6 +3,7 @@ import { useAuth } from './AuthContext'
 
 const CartContext = createContext()
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useCart = () => useContext(CartContext)
 
 export const CartProvider = ({ children }) => {
@@ -16,10 +17,13 @@ export const CartProvider = ({ children }) => {
         const cartKey = user?.id ? `bookit-cart-${user.id}` : 'bookit-cart-guest'
         const savedCart = localStorage.getItem(cartKey)
         if (savedCart) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setCart(JSON.parse(savedCart))
         } else {
+             
             setCart([])
         }
+         
         setIsCartLoaded(true)
     }, [user?.id])
 

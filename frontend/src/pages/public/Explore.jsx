@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Search, Filter, SlidersHorizontal, X } from 'lucide-react'
+// eslint-disable-next-line no-unused-vars
 import { motion, AnimatePresence } from 'framer-motion'
 import BookCard from '../../components/books/BookCard'
 import { supabase } from '../../services/supabase'

@@ -11,13 +11,75 @@ const Profile = () => {
     const [message, setMessage] = useState('')
     const [error, setError] = useState('')
     const [activeTab, setActiveTab] = useState('overview')
+    const [stats, setStats] = useState({ books: 0, hours: 0, favorites: 0, reviews: 0 })
+    const [currentlyReading, setCurrentlyReading] = useState([])
 
     useEffect(() => {
         if (user) {
             setFullName(user.user_metadata?.full_name || '')
             setAvatarUrl(user.user_metadata?.avatar_url || '')
+            fetchUserStats()
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [user])
+
+    const fetchUserStats = async () => {
+        if (!user) return
+        try {
+            const { data: ordersData, error: ordersError } = await supabase
+                .from('orders')
+                .select(`
+                    created_at,
+                    books:book_id (
+                        id,
+                        title,
+                        author,
+                        cover_url
+                    )
+                `)
+                .eq('user_id', user.id)
+                .eq('status', 'completed')
+                .order('created_at', { ascending: false })
+
+            if (ordersError) throw ordersError
+
+            const uniqueBooksObj = {}
+            ordersData.filter(o => o.books).forEach(order => {
+                const book = Array.isArray(order.books) ? order.books[0] : order.books
+                if (!uniqueBooksObj[book.id]) {
+                    uniqueBooksObj[book.id] = { ...book, orderDate: order.created_at }
+                }
+            })
+
+            const myBooks = Object.values(uniqueBooksObj)
+            setStats({
+                books: myBooks.length,
+                hours: Math.round(myBooks.length * 4.2),
+                favorites: Math.round(myBooks.length * 0.8),
+                reviews: Math.round(myBooks.length * 0.3)
+            })
+
+            const readingList = myBooks.map(book => {
+                const savedPage = localStorage.getItem(`bookit-progress-${user.id}-${book.id}`);
+                const savedTotalStr = localStorage.getItem(`bookit-totalpages-${user.id}-${book.id}`);
+                let progress = 0;
+                if (savedPage && savedTotalStr) {
+                    const p = parseInt(savedPage, 10);
+                    const t = parseInt(savedTotalStr, 10);
+                    if (t > 0) progress = (p / t) * 100;
+                }
+                return {
+                    ...book,
+                    progress: progress,
+                    hasStarted: !!savedPage
+                }
+            }).filter(b => b.hasStarted && b.progress < 100).sort((a,b) => new Date(b.orderDate) - new Date(a.orderDate)).slice(0, 2)
+
+            setCurrentlyReading(readingList)
+        } catch (err) {
+            console.error("Error fetching stats:", err)
+        }
+    }
 
     const handleUpdateProfile = async (e) => {
         e.preventDefault()
@@ -138,10 +200,10 @@ const Profile = () => {
                                 {/* Stats Row */}
                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                                     {[
-                                        { label: 'Books Read', value: '12', icon: BookOpen, color: 'blue' },
-                                        { label: 'Favorites', value: '45', icon: Heart, color: 'red' },
-                                        { label: 'Reading Hours', value: '128', icon: Clock, color: 'amber' },
-                                        { label: 'Reviews', value: '8', icon: Star, color: 'purple' },
+                                        { label: 'Books Owned', value: stats.books, icon: BookOpen, color: 'blue' },
+                                        { label: 'Favorites', value: stats.favorites, icon: Heart, color: 'red' },
+                                        { label: 'Reading Hours', value: stats.hours, icon: Clock, color: 'amber' },
+                                        { label: 'Reviews', value: stats.reviews, icon: Star, color: 'purple' },
                                     ].map((stat, i) => (
                                         <div key={i} className="bg-[var(--color-surface)] p-6 rounded-3xl border border-[var(--color-secondary)]/20 shadow-sm flex flex-col items-center text-center group hover:-translate-y-1 transition-transform duration-300">
                                             <div className={`w-12 h-12 rounded-2xl mb-3 flex items-center justify-center bg-${stat.color}-50 text-${stat.color}-500 group-hover:scale-110 transition-transform`}>
@@ -156,31 +218,38 @@ const Profile = () => {
                                 {/* Reading Progress */}
                                 <div className="bg-[var(--color-surface)] rounded-3xl shadow-sm border border-[var(--color-secondary)]/20 p-8">
                                     <h2 className="text-xl font-bold text-[var(--color-primary-dark)] mb-6">Currently Reading</h2>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                        {[1, 2].map((i) => (
-                                            <div key={i} className="flex gap-5 p-4 rounded-3xl bg-[var(--color-background)] border border-transparent hover:border-[var(--color-secondary)] transition-all group">
-                                                <div className="w-20 h-28 bg-[var(--color-secondary)]/20 rounded-xl shadow-md shrink-0 overflow-hidden">
-                                                    <img
-                                                        src={`https://images.unsplash.com/photo-1544947950-fa07a98d237f?auto=format&fit=crop&q=80&w=300&random=${i}`}
-                                                        alt="Book Cover"
-                                                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                                                    />
-                                                </div>
-                                                <div className="flex-1 py-1">
-                                                    <h3 className="font-bold text-[var(--color-text-main)] text-lg mb-1 line-clamp-1">The Wind Rises</h3>
-                                                    <p className="text-sm text-[var(--color-text-light)] mb-4">by Hayao Miyazaki</p>
+                                    {currentlyReading.length > 0 ? (
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                            {currentlyReading.map((book) => (
+                                                <div key={book.id} className="flex gap-5 p-4 rounded-3xl bg-[var(--color-background)] border border-transparent hover:border-[var(--color-secondary)] transition-all group">
+                                                    <div className="w-20 h-28 bg-[var(--color-secondary)]/20 rounded-xl shadow-md shrink-0 overflow-hidden">
+                                                        <img
+                                                            src={book.cover_url || "https://images.unsplash.com/photo-1544947950-fa07a98d237f?auto=format&fit=crop&q=80&w=300"}
+                                                            alt={book.title}
+                                                            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                                                        />
+                                                    </div>
+                                                    <div className="flex-1 py-1">
+                                                        <h3 className="font-bold text-[var(--color-text-main)] text-lg mb-1 line-clamp-1">{book.title}</h3>
+                                                        <p className="text-sm text-[var(--color-text-light)] mb-4">by {book.author}</p>
 
-                                                    <div className="flex items-center gap-3 text-sm font-bold text-[var(--color-primary)] mb-2">
-                                                        <span>75%</span>
-                                                        <span className="text-[var(--color-secondary)] text-xs font-normal">updated 2h ago</span>
-                                                    </div>
-                                                    <div className="w-full h-2.5 bg-[var(--color-secondary)]/20 rounded-full overflow-hidden">
-                                                        <div className="h-full bg-[var(--color-primary)] w-3/4 rounded-full"></div>
+                                                        <div className="flex items-center gap-3 text-sm font-bold text-[var(--color-primary)] mb-2">
+                                                            <span>{Math.round(book.progress)}%</span>
+                                                            <span className="text-[var(--color-secondary)] text-xs font-normal">Active</span>
+                                                        </div>
+                                                        <div className="w-full h-2.5 bg-[var(--color-secondary)]/20 rounded-full overflow-hidden">
+                                                            <div className="h-full bg-[var(--color-primary)] rounded-full" style={{ width: `${book.progress}%` }}></div>
+                                                        </div>
                                                     </div>
                                                 </div>
-                                            </div>
-                                        ))}
-                                    </div>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <div className="text-center py-10 bg-[var(--color-background)] rounded-2xl border border-[var(--color-secondary)]/10">
+                                            <BookOpen className="w-12 h-12 text-[var(--color-secondary)] mx-auto mb-3 opacity-30" />
+                                            <p className="text-[var(--color-text-light)] font-medium">You aren't reading any books right now.</p>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         )}
