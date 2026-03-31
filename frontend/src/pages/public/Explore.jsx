@@ -55,7 +55,7 @@ const Explore = () => {
         fetchBooks();
     }, []);
 
-    const categories = ['All', 'Romance', 'Fantasy', 'Sci-Fi', 'Slice of Life', 'Mystery', 'Art']
+    const categories = ['All', 'Romance', 'Fantasy', 'Sci-Fi', 'Adventure', 'Mystery', 'Slice of Life', 'Art', 'Non-Fiction']
 
     const filteredBooks = allBooks.filter(book => {
         const matchesSearch = book.title.toLowerCase().includes(searchTerm.toLowerCase()) || book.author.toLowerCase().includes(searchTerm.toLowerCase())

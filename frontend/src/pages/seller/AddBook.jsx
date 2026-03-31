@@ -208,6 +208,8 @@ const AddBook = () => {
                                                 <option value="Romance">Romance</option>
                                                 <option value="Adventure">Adventure</option>
                                                 <option value="Mystery">Mystery</option>
+                                                <option value="Slice of Life">Slice of Life</option>
+                                                <option value="Art">Art</option>
                                                 <option value="Non-Fiction">Non-Fiction</option>
                                             </select>
                                         </div>
