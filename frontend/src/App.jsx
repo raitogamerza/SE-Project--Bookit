@@ -24,6 +24,8 @@ import { AuthProvider } from './context/AuthContext'
 import UpdatePassword from './pages/auth/UpdatePassword'
 import SellerLogin from './pages/auth/SellerLogin'
 import SellerRegister from './pages/auth/SellerRegister'
+import SellerForgotPassword from './pages/auth/SellerForgotPassword'
+import SellerUpdatePassword from './pages/auth/SellerUpdatePassword'
 import SellerGuide from './pages/seller/SellerGuide'
 import AddBook from './pages/seller/AddBook'
 import EditBook from './pages/seller/EditBook'
@@ -66,6 +68,8 @@ function App() {
           {/* Seller Auth Routes (Standalone - No Sidebar/User Navbar) */}
           <Route path="/seller/login" element={<SellerLogin />} />
           <Route path="/seller/register" element={<SellerRegister />} />
+          <Route path="/seller/forgot-password" element={<SellerForgotPassword />} />
+          <Route path="/seller/update-password" element={<SellerUpdatePassword />} />
 
           {/* Admin Routes - Authenticated Portal (Admin Layout) */}
           <Route path="/admin" element={

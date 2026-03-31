@@ -92,7 +92,7 @@ const SellerLogin = () => {
                                 <input type="checkbox" className="rounded text-orange-500 focus:ring-orange-500" />
                                 <span className="text-[var(--color-text-light)]">Remember me</span>
                             </label>
-                            <Link to="/forgot-password" className="text-orange-600 font-bold hover:underline">Forgot password?</Link>
+                            <Link to="/seller/forgot-password" className="text-orange-600 font-bold hover:underline">Forgot password?</Link>
                         </div>
 
                         <button
