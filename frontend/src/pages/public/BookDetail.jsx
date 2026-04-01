@@ -153,8 +153,7 @@ const BookDetail = () => {
                     </div>
 
                     <div className="flex items-center gap-4 pt-8 border-t border-[var(--color-secondary)]/20">
-                        <div className="flex flex-col">
-                            <span className="text-sm text-[var(--color-text-light)] line-through">฿{book.price + 50}</span>
+                        <div className="flex flex-col justify-center">
                             <span className="text-5xl font-bold text-[var(--color-primary)]">฿{book.price}</span>
                         </div>
                         <div className="flex-1"></div>
