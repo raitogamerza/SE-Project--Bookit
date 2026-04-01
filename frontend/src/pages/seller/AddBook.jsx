@@ -294,9 +294,9 @@ const AddBook = () => {
                                 </h2>
 
                                 <div>
-                                    <label className="block text-sm font-medium text-[var(--color-text-main)] mb-1">Price (USD)</label>
+                                    <label className="block text-sm font-medium text-[var(--color-text-main)] mb-1">Price (BTH)</label>
                                     <div className="relative">
-                                        <span className="absolute left-4 top-2 text-[var(--color-text-light)]">$</span>
+                                        <span className="absolute left-4 top-2 text-[var(--color-text-light)]">฿</span>
                                         <input
                                             type="number"
                                             name="price"
